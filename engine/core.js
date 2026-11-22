@@ -24,6 +24,7 @@ const FRAGMENTS = ['LEFT EYE', 'RIGHT EYE', 'VOICE', 'NAME', 'FACE'];
 const A = CFG.A, cv = document.getElementById('c'), ctx = cv.getContext('2d');
 const keys = {}, just = {}, mouse = { x: 480, y: 270, l: 0, r: 0, jl: 0, jr: 0 };
 let state = 'title', prevState = 'title', bi = 0, t = 0, tm = 0, sub = 0;
+const zoneAlive = z => z.t < z.tel + z.act, bulletAlive = b => !b.dead;
 let P = null, B = null, MODE = MODES.abyss, zones = [], bullets = [], clearInfo = null, dodgeCd = 0, boomCd = 0, clangCd = 0;
 
 // ---------------------------------------------------------------- input
@@ -93,7 +94,12 @@ function begin(i) {
 }
 function pause() { if (state === 'play' || state === 'intro') { prevState = state; state = 'paused'; UI.mi = 0; } }
 function resume() { if (state === 'paused') state = prevState; }
-function availableBolts() { return BOLTS.map((b, i) => i).filter(i => BOLTS[i].need < 0 || SAVE.isCleared(BOLTS[i].need)); }
+let boltCache = null, boltCacheKey = -1;                      // recomputed only when a boss is cleared, not every frame
+function availableBolts() {
+  const key = SAVE.d.cleared.length;
+  if (key !== boltCacheKey) { boltCacheKey = key; boltCache = BOLTS.map((b, i) => i).filter(i => BOLTS[i].need < 0 || SAVE.isCleared(BOLTS[i].need)); }
+  return boltCache;
+}
 
 function useStam(n) {
   if (!MODE.stamina) return true;
@@ -277,7 +283,7 @@ function updZones(dt) {
       if (h) hurt();
     }
   }
-  zones = zones.filter(z => z.t < z.tel + z.act);
+  compact(zones, zoneAlive);
 }
 function updBullets(dt) {
   for (const b of bullets) {
@@ -285,7 +291,7 @@ function updBullets(dt) {
     if (Math.hypot(b.x - P.x, b.y - P.y) < b.r + P.r * 0.6) hurt();
     if (b.x < A.x - 40 || b.x > A.x + A.w + 40 || b.y < A.y - 40 || b.y > A.y + A.h + 40) b.dead = 1;
   }
-  bullets = bullets.filter(b => !b.dead);
+  compact(bullets, bulletAlive);
 }
 
 // ---------------------------------------------------------------- main update
@@ -307,7 +313,7 @@ function update(rdt) {
   else if (state === 'dead') {            // let the killing hazard finish and fade instead of freezing on screen
     sub += rdt; bullets = [];
     for (const z of zones) z.t += rdt;
-    zones = zones.filter(z => z.t < z.tel + z.act);
+    compact(zones, zoneAlive);
   }
   else if (state === 'clear') {
     sub -= dt;

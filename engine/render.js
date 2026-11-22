@@ -3,6 +3,17 @@
 
 let floorCv = null, vigCv = null;
 
+// Pre-rendered glow sprites: one drawImage per bullet / for the hero's light, instead of shadowBlur or a gradient built every frame.
+function radialSprite(size, stops) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'), r = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [at, col] of stops) r.addColorStop(at, col);
+  g.fillStyle = r; g.fillRect(0, 0, size, size);
+  return c;
+}
+const GLOW = radialSprite(32, [[0, 'rgba(255,130,90,.85)'], [0.4, 'rgba(255,70,40,.32)'], [1, 'rgba(255,40,20,0)']]);
+const LIGHT = radialSprite(340, [[0, 'rgba(170,90,255,.17)'], [1, 'rgba(0,0,0,0)']]);
+
 // ---------------------------------------------------------------- cached layers
 function buildFloor(th) {
   const c = document.createElement('canvas'); c.width = A.w; c.height = A.h;
@@ -84,7 +95,8 @@ function drawZone(z) {
   } else {
     const a = 1 - (z.t - z.tel) / z.act;
     ctx.fillStyle = 'rgba(255,' + (130 + 100 * a | 0) + ',' + (130 + 100 * a | 0) + ',' + ((z.k === 'x' || z.k === 'r' ? 0.38 : 0.5) + 0.45 * a) + ')';
-    ctx.shadowColor = '#f44'; ctx.shadowBlur = 20; zonePath(z, 1); ctx.fill('evenodd');
+    zonePath(z, 1); ctx.fill('evenodd');
+    ctx.strokeStyle = 'rgba(255,90,90,' + (0.5 * a) + ')'; ctx.lineWidth = 7; ctx.stroke();   // cheap glow: shadowBlur cost grows with shape size (a 1600px ring cost 600 ms)
   }
   ctx.restore();
 }
@@ -275,24 +287,23 @@ function drawWorld() {
   for (const z of zones) drawZone(z);
   if (!(state === 'clear' && sub < 2.6)) drawBoss();
   drawBolt();
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.shadowColor = '#f42'; ctx.shadowBlur = 12; ctx.fillStyle = '#f64';
-  for (const b of bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, TAU); ctx.fill(); }
-  ctx.restore();
-  ctx.fillStyle = '#fff'; for (const b of bullets) { ctx.beginPath(); ctx.arc(b.x, b.y, b.r * 0.4, 0, TAU); ctx.fill(); }
+  if (bullets.length) {
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    for (const b of bullets) { const s = b.r * 3.4; ctx.drawImage(GLOW, b.x - s, b.y - s, s * 2, s * 2); }
+    ctx.restore();
+    ctx.fillStyle = '#f64'; ctx.beginPath(); for (const b of bullets) { ctx.moveTo(b.x + b.r, b.y); ctx.arc(b.x, b.y, b.r, 0, TAU); } ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.beginPath(); for (const b of bullets) { ctx.moveTo(b.x + b.r * 0.4, b.y); ctx.arc(b.x, b.y, b.r * 0.4, 0, TAU); } ctx.fill();
+  }
   ctx.restore();
   // soft light around the hero
   if (state !== 'dead') {
-    const g = ctx.createRadialGradient(P.x, P.y, 8, P.x, P.y, 170); g.addColorStop(0, 'rgba(170,90,255,.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(P.x - 170, P.y - 170, 340, 340); ctx.restore();
+    ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(LIGHT, P.x - 170, P.y - 170); ctx.restore();
   }
   drawPlayer();
-  for (const p of FX.parts) {
-    ctx.globalAlpha = clamp(p.l / p.m, 0, 1); ctx.fillStyle = p.c;
-    if (p.glow) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); ctx.restore(); }
-    else ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
-  }
-  ctx.globalAlpha = 1;
+  for (const p of FX.parts) if (!p.glow) { ctx.globalAlpha = clamp(p.l / p.m, 0, 1); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); }
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';            // all glowing particles in one blend-mode pass
+  for (const p of FX.parts) if (p.glow) { ctx.globalAlpha = clamp(p.l / p.m, 0, 1); ctx.fillStyle = p.c; ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size); }
+  ctx.restore(); ctx.globalAlpha = 1;
   for (const x of FX.texts) { ctx.globalAlpha = clamp(x.l / x.m * 1.5, 0, 1); text(x.s, x.x, x.y, 16, x.c); } ctx.globalAlpha = 1;
   ctx.restore();
   ctx.drawImage(vignette(), 0, 0);

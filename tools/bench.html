@@ -1,0 +1,36 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Darkheart benchmark</title>
+<style>body{margin:12px;background:#14091c;color:#ddd;font:13px monospace}</style></head>
+<body><h3>Darkheart frame benchmark</h3>
+<p>Real frames through requestAnimationFrame (what the player sees). Scripted dodger, fixed random seed, god mode.<br>
+frame = time between presented frames (16.7 = perfect 60 fps). work = our update+draw CPU time. slow = frames over 25 ms.<br>
+?engine=before benchmarks the copy in tools/before/ for comparison.</p><pre id="o">running...</pre>
+<canvas id="c" width="960" height="540"></canvas>
+<script>
+const base = new URLSearchParams(location.search).get('engine') === 'before' ? 'before/engine/' : '../engine/';
+const files = ['util', 'spritegen', 'sprite', 'save', 'audio', 'fx', 'core', 'ui', 'render', 'bosses'];
+(async () => {
+  for (const f of files) await new Promise(r => { const s = document.createElement('script'); s.src = base + f + '.js'; s.onload = r; document.body.appendChild(s); });
+  await dhInit('../'); pause = () => {};
+  const rng = s => () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const pct = (a, p) => a[Math.min(a.length - 1, Math.floor(a.length * p))];
+  const run = i => new Promise(res => {
+    Math.random = rng(12345 + i); begin(i); state = 'play'; P.hp = P.maxhp = MODE.hp; P.inv = 1e9; B.wait = 0;
+    const dts = [], work = []; let last = 0, f = 0, mb = 0;
+    (function frame(now) {
+      if (last) dts.push(now - last); last = now;
+      const s = f / 60; keys.KeyD = Math.sin(s * 0.7) > 0; keys.KeyA = !keys.KeyD; keys.KeyW = Math.sin(s * 0.5) > 0.3; keys.KeyS = !keys.KeyW;
+      mouse.x = B.x; mouse.y = B.y; mouse.l = f % 7 === 0 ? 1 : 0;
+      const a = performance.now(); update(1 / 60); draw(); work.push(performance.now() - a); mb = Math.max(mb, bullets.length);
+      for (const k in just) delete just[k];
+      if (++f < 480 && state === 'play') requestAnimationFrame(frame); else { keys.KeyA = keys.KeyD = keys.KeyW = keys.KeyS = 0; res({ name: B.name, dts: dts.slice(30), work: work.slice(30), mb }); }
+    })(performance.now());
+  });
+  let out = 'engine=' + base + '\nboss                    frames  frame avg  p99    max    slow  work avg  work p99  work max  bullets\n';
+  for (let i = 0; i < BOSSES.length; i++) {
+    const r = await run(i), d = [...r.dts].sort((x, y) => x - y), w = [...r.work].sort((x, y) => x - y), avg = a => a.reduce((x, y) => x + y, 0) / a.length;
+    out += r.name.padEnd(24) + String(d.length).padEnd(8) + avg(d).toFixed(2).padEnd(11) + pct(d, 0.99).toFixed(1).padEnd(7) + d[d.length - 1].toFixed(1).padEnd(7) + String(d.filter(x => x > 25).length).padEnd(6) + avg(w).toFixed(3).padEnd(10) + pct(w, 0.99).toFixed(2).padEnd(10) + w[w.length - 1].toFixed(2).padEnd(10) + r.mb + '\n';
+    document.getElementById('o').textContent = out + '...';
+  }
+  document.getElementById('o').textContent = out + '\nDONE'; document.title = 'BENCH DONE';
+})();
+</script></body></html>

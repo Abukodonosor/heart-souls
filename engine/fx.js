@@ -1,5 +1,6 @@
 'use strict';
 // Game-feel layer: screen shake, hit-stop, particles, floating text, screen flash.
+const alive = o => o.l > 0;
 const FX = {
   sk: 0,            // current shake amplitude (px)
   hs: 0,            // remaining hit-stop (s): the game runs ~15x slower while > 0
@@ -23,8 +24,8 @@ const FX = {
     if (this.sk < 0.2) this.sk = 0;
     this.flash = Math.max(0, this.flash - rdt * 2.2);
     for (const p of this.parts) { p.l -= dt; p.x += p.vx * dt; p.y += p.vy * dt; const k = Math.max(0, 1 - p.drag * dt); p.vx *= k; p.vy *= k; }
-    this.parts = this.parts.filter(p => p.l > 0);
+    compact(this.parts, alive);
     for (const x of this.texts) { x.l -= dt; x.y -= 28 * dt; }
-    this.texts = this.texts.filter(x => x.l > 0);
+    compact(this.texts, alive);
   },
 };
