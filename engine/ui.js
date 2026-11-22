@@ -1,6 +1,6 @@
 'use strict';
 // Menus: title, boss select, pause, win. Logic only; render.js draws the items and fills UI.rects for mouse hit-testing.
-const UI = { mi: 0, rects: [], mx: -1, my: -1 };
+const UI = { mi: 0, rects: [], mx: 480, my: 270 };   // start equal to the default mouse so the first frame is not read as a hover
 
 function toTitle() { state = 'title'; UI.mi = 0; AUD.stopMusic(); FX.clear(); }
 function cycleMode() { SAVE.d.mode = SAVE.d.mode === 'abyss' ? 'souls' : 'abyss'; SAVE.flush(); AUD.sfx('ui'); }
@@ -15,7 +15,7 @@ function menuItems() {
     volItem(),
   ];
   if (state === 'select') return BOSS_INFO.map((b, i) => ({
-    text: () => (i + 1) + '  ' + (SAVE.canPlay(i) ? b.name.padEnd(17) + (SAVE.isCleared(i) ? 'FELLED ' + SAVE.d.best[i].toFixed(1) + 's' : '') : '???'.padEnd(17) + 'LOCKED'),
+    text: () => (i + 1) + '  ' + (SAVE.canPlay(i) ? b.name.padEnd(22) + (SAVE.isCleared(i) ? 'FELLED ' + SAVE.d.best[i].toFixed(1) + 's' : '') : '???'.padEnd(22) + 'LOCKED'),
     sub: () => SAVE.canPlay(i) ? b.epithet + '   deaths: ' + (SAVE.d.deaths[i] || 0) : 'Defeat the previous boss.',
     disabled: () => !SAVE.canPlay(i),
     act: () => { if (SAVE.canPlay(i)) { AUD.sfx('ok'); begin(i); } },

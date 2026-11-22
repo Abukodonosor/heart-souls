@@ -91,7 +91,7 @@ function begin(i) {
   AUD.startMusic(); AUD.setIntensity(0.2);
   FX.flash = 1; FX.flashC = '#000';
 }
-function pause() { if (state === 'play' || state === 'intro') { prevState = state; state = 'paused'; } }
+function pause() { if (state === 'play' || state === 'intro') { prevState = state; state = 'paused'; UI.mi = 0; } }
 function resume() { if (state === 'paused') state = prevState; }
 function availableBolts() { return BOLTS.map((b, i) => i).filter(i => BOLTS[i].need < 0 || SAVE.isCleared(BOLTS[i].need)); }
 
@@ -304,7 +304,11 @@ function update(rdt) {
   uiUpdate(rdt);
   if (state === 'intro') { sub -= dt; if (sub <= 0) { state = 'play'; AUD.setIntensity(0.35); } }
   else if (state === 'play') play(dt);
-  else if (state === 'dead') sub += rdt;
+  else if (state === 'dead') {            // let the killing hazard finish and fade instead of freezing on screen
+    sub += rdt; bullets = [];
+    for (const z of zones) z.t += rdt;
+    zones = zones.filter(z => z.t < z.tel + z.act);
+  }
   else if (state === 'clear') {
     sub -= dt;
     if (sub <= 0) { if (bi + 1 < BOSSES.length) begin(bi + 1); else { state = 'win'; UI.mi = 0; } }

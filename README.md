@@ -14,4 +14,4 @@ WASD move - Space/Shift dash (i-frames) - LMB/J blade - RMB/K throw/recall bolt 
 Q burst - F flask (souls mode) - Esc pause - M mute
 
 ## Layout
-`engine/` game code - `assets/` editor output (`darkheart.json`) - `archive/` early prototypes (3D, platformer) - `tests/` - `tools/`
+`engine/` game code (`spritegen.js` = procedural 8-direction hero art, `tools/sheet.html` = contact sheet)  - `assets/` editor output (`darkheart.json`) - `archive/` early prototypes (3D, platformer) - `tests/` - `tools/`

@@ -25,7 +25,7 @@ h4{margin:12px 0 4px;color:#c6f}
 <button id="undo">Undo (Ctrl+Z)</button><br><button id="clear">Clear frame</button><br><button id="flip">Flip frame H</button><br>
 <label><input type="checkbox" id="onion" checked> onion skin</label><br><label><input type="checkbox" id="grid" checked> grid</label>
 <h4>FILE</h4>
-<button id="save">Save to game</button><br><button id="reload">Reload from game</button><br><button id="export">Export PNG sheet</button><br>
+<button id="save">Save to game</button><br><button id="reload">Reload from game</button><br><button id="export">Export PNG sheet</button><br><button id="regen">Regenerate defaults</button><br>
 <a href="arena.html" target="_blank" style="color:#6cf">Open game</a>
 <div id="st"></div>
 </div>
@@ -44,9 +44,11 @@ FPS <input type="number" id="fps" value="8" min="1" max="30" style="width:50px">
 </div>
 </div>
 <div id="strip"></div>
+<script src="engine/util.js"></script>
+<script src="engine/spritegen.js"></script>
 <script src="engine/sprite.js"></script>
 <script>
-const W=SPR.W,H=SPR.H,Z=8,$=id=>document.getElementById(id);
+const W=SPR.W,H=SPR.H,Z=10,$=id=>document.getElementById(id);
 const NAMES=['idle','walk','dash','attack','death'];
 let frames=[],cur=0,anims={},ca='idle',tool='pencil',color='#aa1111',undo=[],drawing=false,last=null;
 const ed=$('ed'),ex=ed.getContext('2d');ed.width=W*Z;ed.height=H*Z;
@@ -103,9 +105,8 @@ for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const h='#'+[d[i],d[i+1],d[i+2]
 const s=document.createElement('span');s.style.background=h;s.onclick=()=>{color=h;$('col').value=h;if(tool!='fill')setTool('pencil')};p.appendChild(s)}}
 // file
 async function load(){await dhInit('');frames=DH.frames.map(f=>{const c=mkC();c.getContext('2d').drawImage(f,0,0);return c});anims={};
-for(const n of NAMES)anims[n]=DH.anims[n]?JSON.parse(JSON.stringify(DH.anims[n])):{frames:[],fps:8,loop:n!='death'&&n!='attack'};
-for(const n of Object.keys(DH.anims))if(!anims[n])anims[n]=JSON.parse(JSON.stringify(DH.anims[n]));
-cur=0;ca='idle';undo=[];palette();render();status('Loaded '+frames.length+' frame(s).')}
+for(const n of Object.keys(DH.anims))anims[n]=JSON.parse(JSON.stringify(DH.anims[n]));
+cur=0;ca=Object.keys(anims)[0]||'idle';if(!anims[ca])anims[ca]={frames:[],fps:8,loop:true};undo=[];palette();render();status('Loaded '+frames.length+' frame(s).')}
 $('reload').onclick=load;
 $('save').onclick=async()=>{const body=JSON.stringify({w:W,h:H,frames:frames.map(f=>f.toDataURL()),anims});try{const r=await fetch('/save',{method:'POST',body});status(r.ok?'Saved to assets/darkheart.json. Reload the game to see it.':'Save failed ('+r.status+')')}catch(e){status('Save failed: '+e)}};
 $('export').onclick=()=>{const c=document.createElement('canvas');c.width=W*frames.length;c.height=H;frames.forEach((f,i)=>c.getContext('2d').drawImage(f,i*W,0));c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='darkheart_sheet.png';a.click()})};
@@ -113,5 +114,6 @@ $('export').onclick=()=>{const c=document.createElement('canvas');c.width=W*fram
 (function pl(){requestAnimationFrame(pl);px.clearRect(0,0,pv.width,pv.height);px.imageSmoothingEnabled=false;const a=anims[ca];if(!a||!frames.length)return;
 let f=frames[cur];if(a.frames.length){const n=a.frames.length;let i=Math.floor(performance.now()/1000*a.fps);i=a.loop===false?Math.min(i%(n+3),n-1):i%n;f=frames[a.frames[i]]||f}
 px.drawImage(f,0,0,W*3,H*3)})();
+$('regen').onclick=()=>{if(!confirm('Replace ALL frames with the generated defaults?'))return;const g=genHeroSet();frames=g.frames.map(f=>{const c=mkC();c.getContext('2d').drawImage(f,0,0);return c});anims=JSON.parse(JSON.stringify(g.anims));cur=0;ca=Object.keys(anims)[0];undo=[];palette();render();status('Regenerated defaults (not saved yet).')};
 load();
 </script></body></html>

@@ -61,7 +61,7 @@ function drawHeartEater(g, k) {
 let mirrorCv = null;
 function mirrorSprite() {                                   // the hero's own sprite, drained to a pale ghost
   if (mirrorCv || !DH.ready) return mirrorCv;
-  const c = dhCanvas(), g = c.getContext('2d'); g.drawImage(DH.frames[0], 0, 0);
+  const c = document.createElement('canvas'), g = c.getContext('2d'); c.width = DH.portrait.width; c.height = DH.portrait.height; g.drawImage(DH.portrait, 0, 0);
   g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(215,225,250,.86)'; g.fillRect(0, 0, c.width, c.height);
   return (mirrorCv = c);
 }

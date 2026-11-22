@@ -78,11 +78,12 @@ function drawZone(z) {
   ctx.save();
   if (tel) {
     ctx.setLineDash([12, 8]); ctx.lineDashOffset = -t * 50; ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,70,80,.9)';
-    ctx.fillStyle = 'rgba(255,40,60,' + (0.1 + 0.06 * Math.sin(t * 16)) + ')'; zonePath(z, 1); ctx.fill('evenodd'); ctx.stroke();
-    ctx.fillStyle = 'rgba(255,40,60,.3)'; zonePath(z, p); ctx.fill('evenodd');      // fills up as the hit approaches
+    ctx.fillStyle = 'rgba(255,40,60,' + (0.16 + 0.05 * Math.sin(t * 16)) + ')'; zonePath(z, 1); ctx.fill('evenodd'); ctx.stroke();
+    // circles fill from the centre outward; beams, rings and rectangles ramp up in opacity - either way it reads as a countdown
+    ctx.fillStyle = 'rgba(255,40,60,' + (z.k === 'c' ? 0.3 : 0.32 * p) + ')'; zonePath(z, z.k === 'c' ? p : 1); ctx.fill('evenodd');
   } else {
     const a = 1 - (z.t - z.tel) / z.act;
-    ctx.fillStyle = 'rgba(255,' + (130 + 100 * a | 0) + ',' + (130 + 100 * a | 0) + ',' + (0.5 + 0.45 * a) + ')';
+    ctx.fillStyle = 'rgba(255,' + (130 + 100 * a | 0) + ',' + (130 + 100 * a | 0) + ',' + ((z.k === 'x' || z.k === 'r' ? 0.38 : 0.5) + 0.45 * a) + ')';
     ctx.shadowColor = '#f44'; ctx.shadowBlur = 20; zonePath(z, 1); ctx.fill('evenodd');
   }
   ctx.restore();
@@ -105,27 +106,25 @@ function drawBoss() {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(w.x, w.y, B.weak.r + 4 + Math.sin(t * 10) * 2, 0, TAU); ctx.stroke();
   } else { ctx.fillStyle = '#2a2a33'; ctx.beginPath(); ctx.arc(w.x, w.y, B.weak.r * 0.45, 0, TAU); ctx.fill(); }
 }
+const D8 = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+const MIRROR = { SW: 'SE', W: 'E', NW: 'NE' };            // W-side directions reuse the E-side art, flipped
+const dirName = a => D8[((Math.round(a / (PI / 4)) % 8) + 8) % 8];
 function drawPlayer() {
   ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(P.x, P.y + 10, 12, 5, 0, 0, TAU); ctx.fill();
   if (!DH.ready) return;
   const nm = state === 'dead' ? 'death' : P.dash > 0 ? 'dash' : P.swing > 0 ? 'attack' : (P.vx || P.vy) ? 'walk' : 'idle';
   if (P.nm !== nm) { P.nm = nm; P.ts = t; }
-  const el = t - P.ts, fr = dhFrame(nm, el), im = fr || DH.frames[0];
-  const S = 0.78; let sx = 1, sy = 1, ox = 0, oy = 0, rot = 0, al = 1, sa = null;
-  if (!fr) {        // no authored frames for this animation: fake it with squash/stretch on frame 0
-    if (nm === 'idle') sy = 1 + Math.sin(t * 3) * 0.025;
-    else if (nm === 'walk') { const w = Math.abs(Math.sin(t * 13)); oy = -w * 3; rot = Math.sin(t * 13) * 0.07; sy = 1 + w * 0.03; }
-    else if (nm === 'dash') { sa = Math.atan2(P.dy, P.dx); sx = 1.45; sy = 0.75; }
-    else if (nm === 'attack') { const k = Math.max(P.swing, 0) / 0.14; ox = Math.cos(P.sa) * 7 * k; oy = Math.sin(P.sa) * 5 * k; rot = Math.cos(P.sa) * 0.12 * k; }
-    else if (nm === 'death') { rot = Math.min(el * 4, PI / 2); al = Math.max(0, 1 - el * 0.5); oy = Math.min(el * 30, 10); }
-  }
-  if (nm === 'dash') al = 0.55;
-  if (P.inv > 0 && state === 'play' && Math.floor(t * 20) % 2) al *= 0.35;       // post-hit blink
-  ctx.save(); ctx.globalAlpha = al; ctx.translate(P.x + ox, P.y + 10 + oy); ctx.imageSmoothingEnabled = false;
+  if (nm !== 'death') P.fa = P.dash > 0 ? Math.atan2(P.dy, P.dx) : P.swing > 0 ? P.sa : P.aim;   // face where you aim; remember it for the death pose
+  const d8 = dirName(P.fa || 0), base = MIRROR[d8] || d8, flip = !!MIRROR[d8];
+  const im = dhFrame(nm + '_' + base, t - P.ts) || DH.frames[0]; if (!im) return;
+  let al = 1; if (nm === 'dash') al = 0.6;
+  if (nm === 'death') al = Math.max(0, 1 - Math.max(0, t - P.ts - 0.6) * 0.8);
+  if (P.inv > 0 && state === 'play' && Math.floor(t * 20) % 2) al *= 0.35;                     // post-hit blink
+  const S = 1.3;
+  ctx.save(); ctx.globalAlpha = al; ctx.translate(P.x, P.y + 10); ctx.imageSmoothingEnabled = false;
   if (P.burst > 0) { ctx.shadowColor = '#6af'; ctx.shadowBlur = 20; } else if (P.drink > 0) { ctx.shadowColor = '#f93'; ctx.shadowBlur = 18; }
-  if (sa !== null) { ctx.rotate(sa); ctx.scale(sx, sy); ctx.rotate(-sa); } else ctx.scale(sx, sy);
-  ctx.rotate(rot); if (mouse.x < P.x) ctx.scale(-1, 1);
-  ctx.drawImage(im, -im.width * S / 2, -im.height * S, im.width * S, im.height * S);
+  if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(im, -im.width / 2 * S, -SPR.FEET * S, im.width * S, im.height * S);
   ctx.restore();
   if (P.swing > 0 && state !== 'dead') {
     const a = P.swing / 0.14;
@@ -208,18 +207,20 @@ function overlayClear() {
     text('FRAGMENT RECOVERED:  ' + clearInfo.frag, 480, 300, 20, '#fff');
     text('time ' + clearInfo.time.toFixed(1) + 's   best ' + clearInfo.best.toFixed(1) + 's   deaths ' + clearInfo.deaths, 480, 326, 13, '#aaa', 'center', false);
     if (clearInfo.bolt) text('NEW BOLT:  ' + clearInfo.bolt.name + '  -  ' + clearInfo.bolt.blurb, 480, 352, 14, clearInfo.bolt.c);
-    faceIcon(450, 372, 60, 72, SAVE.isCleared.bind(SAVE));
+    faceIcon(730, 212, 56, 68, SAVE.isCleared.bind(SAVE));
   }
   ctx.globalAlpha = 1;
 }
-function drawMenu(items, x, y, gap) {
+function drawMenu(items, x, y, gap, left = false) {      // left: table-style rows (boss select) instead of centred
   UI.rects = [];
   items.forEach((it, i) => {
     const sel = i === UI.mi, dis = it.disabled && it.disabled();
-    const s = (sel ? '> ' : '  ') + it.text() + (sel ? ' <' : '  ');
-    ctx.font = (sel ? 'bold ' : '') + '20px monospace'; ctx.textAlign = 'center';
-    ctx.fillStyle = dis ? '#4a4a55' : sel ? '#fff' : '#9a8aaa'; ctx.fillText(s, x, y + i * gap);
-    const w = ctx.measureText(s).width; UI.rects.push({ x: x - w / 2, y: y + i * gap - 20, w, h: 28 });
+    const s = it.adj ? it.text() : (sel ? '> ' : '  ') + it.text() + (sel ? ' <' : '  ');   // adjustable rows already show < >
+    ctx.font = (sel ? 'bold ' : '') + '20px monospace'; ctx.textAlign = left ? 'left' : 'center';
+    ctx.fillStyle = dis ? '#4a4a55' : sel ? '#fff' : '#9a8aaa';
+    if (left) { ctx.fillText(it.text(), x, y + i * gap); if (sel) ctx.fillText('>', x - 28, y + i * gap); }
+    else ctx.fillText(s, x, y + i * gap);
+    const w = ctx.measureText(left ? it.text() : s).width; UI.rects.push({ x: left ? x - 30 : x - w / 2, y: y + i * gap - 20, w: w + (left ? 30 : 0), h: 28 });
   });
   const cur = items[UI.mi];
   if (cur && cur.sub) text(cur.sub(), x, y + items.length * gap + 8, 13, '#c6f', 'center', false);
@@ -235,7 +236,7 @@ function drawTitle() {
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(A.x, A.y, A.w, A.h);
   if (Math.random() < 0.3) FX.parts.push({ x: rr(A.x, A.x + A.w), y: A.y + A.h, vx: rr(-6, 6), vy: -rr(20, 60), l: 5, m: 5, size: 2, c: '#a0f', drag: 0 });
   if (DH.ready) {                                              // the hero, large, breathing
-    const im = DH.frames[0], S = 3.2, bob = Math.sin(t * 2) * 3;
+    const im = DH.portrait, S = 3.2, bob = Math.sin(t * 2) * 3;
     ctx.save(); ctx.imageSmoothingEnabled = false; ctx.shadowColor = '#a0f'; ctx.shadowBlur = 24;
     ctx.drawImage(im, 150, 120 + bob, im.width * S, im.height * S); ctx.restore();
   }
@@ -251,7 +252,7 @@ function drawSelect() {
   ctx.fillStyle = '#050308'; ctx.fillRect(0, 0, CFG.W, CFG.H); floorBackdrop();
   ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(A.x, A.y, A.w, A.h);
   text('BOSS SELECT', 480, 130, 30, '#fff');
-  drawMenu(menuItems(), 480, 200, 40);
+  drawMenu(menuItems(), 290, 200, 40, true);
   faceIcon(CFG.W - 120, 90, 60, 72, SAVE.isCleared.bind(SAVE));
 }
 function overlayWin() {
