@@ -18,12 +18,20 @@ Tab or 1-4 switch bolt - Q burst - F flask (souls mode) - Esc pause - M mute
 
 ## The hero art (important)
 `hero.png` is the source of truth: a clean 100x100 pixel grid, each art pixel = 12x12 image pixels; the character is 48x87 art pixels, 13 colours.
-All animation is built *from that drawing* (`engine/spritegen.js`): rows and the hand block are moved, nothing is redrawn or resampled, so
-idle frame 0 is pixel-identical to the PNG. Only the Abyssal Blade is new, drawn in the drawing's own colours. Frames are named `idle_L`, `walk_R`, ...
-(`_R` = exact pixel mirror of `_L`). Frames saved from the editor override the generated ones; a save with the wrong frame size is ignored.
+All animation is built *from that drawing* (`engine/spritegen.js`), so idle frame 0 is pixel-identical to the PNG. Only the Abyssal Blade is new, drawn in the
+drawing's own colours. Frames are named `idle_L`, `walk_R`, ... (`_R` = exact pixel mirror of `_L`). Frames saved from the editor override the generated ones;
+a save with the wrong frame size is ignored.
 
-Checks: `node tests/sprites.js` (terminal) or `/tools/validate.html` (browser, with a visual diff). Look at frames: `/tools/sheet.html?anims=attack_L,walk_L&scale=4`.
-`/tools/grid.html` shows the drawing with row/column numbers (used to pick animation regions).
+Rules that keep it free of visual errors (pixel art tears easily):
+1. The figure moves only as one rigid block; rows are never sheared against each other.
+2. The hand block moves rigidly; the blade is drawn under the glove.
+3. Cloak tails move by stretching from the inside (duplicating interior pixels), never by sliding rows.
+4. Anything a move leaves behind is repaired with the drawing's own rules (gaps -> outline colour, bare cloth edge on a tail -> outline).
+5. Drawn at an exact 1:1 scale on whole pixels (a fractional scale drops rows and tears the outline). Death uses an exact 90-degree turn.
+
+`node tests/sprites.js` enforces this: it reads the PNG independently and counts defects per frame (new 2x2 patterns, cut outlines, stray dots, new gaps) against limits.
+`node tools/metrics.js` prints the same numbers for every frame. `/tools/sheet.html?anims=attack_L,walk_L&scale=6&debug=1` shows frames with defects in colour
+(magenta = enclosed gap, cyan = bare edge). `/tools/validate.html` is the browser version with a visual diff; `/tools/grid.html` shows row/column numbers.
 
 ## Layout
     engine/   game code: util, sprite + spritegen (hero art), save, audio, fx, core (state/combat), ui (menus), render, bosses, main

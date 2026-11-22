@@ -66,14 +66,14 @@ function mirrorSprite() {                                   // the hero's own sp
   return (mirrorCv = c);
 }
 function drawMirror(g, k) {
-  const im = mirrorSprite(), S = 0.95; g.save();
+  const im = mirrorSprite(); g.save();
   g.strokeStyle = k ? '#fff' : 'rgba(220,235,255,.35)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, B.r, 0, TAU); g.stroke();
   if (im) {
     g.imageSmoothingEnabled = false; if (Math.cos(B.face) > 0) g.scale(-1, 1);
-    const w = im.width * S, h = im.height * S, n = 9;
-    for (let i = 0; i < n; i++) {                           // glitchy horizontal slices
-      const sy = i * im.height / n, off = Math.sin(t * 9 + i * 1.7) * (B.stun ? 0.5 : 2.2);
-      g.drawImage(im, 0, sy, im.width, im.height / n, -w / 2 + off, -h * 0.55 + i * h / n, w, h / n + 0.5);
+    const n = 9, top = -Math.round(im.height * 0.55);                  // 1:1 scale, whole-pixel slices: a fractional scale would tear the sprite
+    for (let i = 0; i < n; i++) {                                      // glitchy horizontal slices
+      const y0 = Math.floor(i * im.height / n), y1 = Math.floor((i + 1) * im.height / n), off = Math.round(Math.sin(t * 9 + i * 1.7) * (B.stun ? 0.5 : 2.2));
+      g.drawImage(im, 0, y0, im.width, y1 - y0, -Math.round(im.width / 2) + off, top + y0, im.width, y1 - y0);
     }
   }
   g.restore();

@@ -29,8 +29,8 @@ each boss holds a fragment of it.
 - `tools/` dev server + editor save endpoint, benchmark, sprite tooling - `tests/` headless smoke + sprite tests (`npm test`)
 
 ## Hero art pipeline
-The drawing (`hero.png`, 48x87 art pixels on a 12px grid) is the single source of truth. Frames are built by moving rows (head bob, cloak ripple, lean)
-and the hand block (arm swing), never by redrawing, so the character always looks exactly like the original. The Abyssal Blade is the only drawn addition.
+The drawing (`hero.png`, 48x87 art pixels on a 12px grid) is the single source of truth. Frames are built by moving the figure as one rigid block, the hand block (arm swing) and stretching the cloak tails from the inside - never by shearing rows or redrawing -
+so the character always looks exactly like the original (rules and defect limits: README, `tests/sprites.js`). The Abyssal Blade is the only drawn addition.
 Directions: the drawing faces left; `_R` frames are exact mirrors. Views from behind / the side would be new art and must come from the artist.
 
 ## Next run: TOWER DEFENCE

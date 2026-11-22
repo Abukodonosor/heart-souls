@@ -19,6 +19,7 @@ const BOLTS = [
   { id: 'flame', name: 'SOUL FLAME', need: 1, c: '#f93', blurb: 'Pierces, then burns the boss.' },
   { id: 'thorn', name: 'BURNING THORNS', need: 2, c: '#fa5', blurb: 'Vines and flame combined.' },
 ];
+const BOSS_SCALE = 1.25;                      // bosses are authored at 1x; they are enlarged to stand next to the 87px hero
 const FRAGMENTS = ['LEFT EYE', 'RIGHT EYE', 'VOICE', 'NAME', 'FACE'];
 
 const A = CFG.A, cv = document.getElementById('c'), ctx = cv.getContext('2d');
@@ -68,8 +69,8 @@ function* expose(T) {                       // weak point open + boss frozen: th
 }
 function* goto(x, y, sp = 200) { B.tgt = { x, y, sp }; yield () => !B.tgt; }
 function mk(o) {
-  return Object.assign({ face: PI / 2, weak: { open: false, r: 15 }, stun: false, cast: null, tgt: null, wait: 1.6, cond: null,
-    flash: 0, phases: 2, ks: [1, 0.8, 0.62], k: 1, openT: 0, slow: 0, burn: 0, bt: 0, phase: 0, epithet: '', theme: THEMES.violet }, o, { max: o.hp });
+  return Object.assign({ face: PI / 2, weak: { open: false, r: 17 }, stun: false, cast: null, tgt: null, wait: 1.6, cond: null,
+    flash: 0, phases: 2, ks: [1, 0.8, 0.62], k: 1, openT: 0, slow: 0, burn: 0, bt: 0, phase: 0, epithet: '', theme: THEMES.violet }, o, { max: o.hp, r: Math.round(o.r * BOSS_SCALE) });
 }
 const weakPos = () => ({ x: B.x + Math.cos(B.face + PI) * B.r * 0.95, y: B.y + Math.sin(B.face + PI) * B.r * 0.95 });
 function phaseOf() {

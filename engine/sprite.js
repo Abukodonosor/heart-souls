@@ -2,7 +2,7 @@
 // Hero art loader. A native frame is 36x52 (feet on row 48). Frames come from, in priority order:
 //   1. assets/darkheart.json  (saved by editor.html)    2. genHeroSet() in spritegen.js  (procedural defaults, 5 dirs + mirrors)
 // DH.portrait is the original hero.png converted to real pixels (title screen, the Mirror boss).
-const SPR = { W: 60, H: 94, FEET: 91 };      // frame canvas: the 48x87 drawing + padding for moving parts (see GEN in spritegen.js)
+const SPR = { W: 60, H: 96, FEET: 91 };      // frame canvas: the 48x87 drawing + padding for moving parts (see GEN in spritegen.js)
 // hero.png is a clean 100x100 pixel-art grid, every art pixel = 12x12 image pixels (measured: 10000/10000 blocks uniform).
 // The character fills cols 26..73, rows 9..95 of that grid = 48x87 art pixels, 2199 opaque, 13 colours. tools/validate.html re-checks all of this.
 const PORT = { PX: 12, ox: 26, oy: 9, W: 48, H: 87 };

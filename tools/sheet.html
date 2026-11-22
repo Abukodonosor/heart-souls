@@ -7,5 +7,13 @@
 (async()=>{const q=new URLSearchParams(location.search),S=+(q.get('scale')||4),names=(q.get('anims')||'idle_L').split(',');
 const set=genHeroSet(await dhLoadPortrait('../')),o=document.getElementById('o');
 for(const an of names){o.insertAdjacentHTML('beforeend','<h4>'+an+' ('+set.anims[an].frames.length+' frames @ '+set.anims[an].fps+'fps)</h4>');
-for(const fi of set.anims[an].frames){const c=document.createElement('canvas');c.width=SPR.W;c.height=SPR.H;c.style.width=SPR.W*S+'px';c.style.height=SPR.H*S+'px';c.getContext('2d').drawImage(set.frames[fi],0,0);o.appendChild(c)}}})();
+for(const fi of set.anims[an].frames){const c=document.createElement('canvas');c.width=SPR.W;c.height=SPR.H;c.style.width=SPR.W*S+'px';c.style.height=SPR.H*S+'px';const g=c.getContext('2d');g.drawImage(set.frames[fi],0,0);
+ if(q.get('debug')){ // magenta = enclosed empty pixels (holes/gaps), cyan = non-black pixels touching empty space (cut outline)
+  const d=g.getImageData(0,0,SPR.W,SPR.H),W=SPR.W,H=SPR.H,A=(x,y)=>x>=0&&y>=0&&x<W&&y<H&&d.data[(y*W+x)*4+3]>0,seen=new Uint8Array(W*H),st=[];
+  for(let x=0;x<W;x++)st.push([x,0],[x,H-1]);for(let y=0;y<H;y++)st.push([0,y],[W-1,y]);
+  while(st.length){const [x,y]=st.pop();if(x<0||y<0||x>=W||y>=H||seen[y*W+x]||A(x,y))continue;seen[y*W+x]=1;st.push([x+1,y],[x-1,y],[x,y+1],[x,y-1])}
+  const mark=[];for(let y=0;y<H;y++)for(let x=0;x<W;x++){if(!A(x,y)&&!seen[y*W+x])mark.push([x,y,'rgba(255,0,255,.9)']);
+   else if(A(x,y)){const k=(y*W+x)*4;if(d.data[k]+d.data[k+1]+d.data[k+2]>0&&[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>!A(x+dx,y+dy)))mark.push([x,y,'rgba(0,255,255,.9)'])}}
+  for(const [x,y,col] of mark){g.fillStyle=col;g.fillRect(x,y,1,1)}}
+ o.appendChild(c)}}})();
 </script></body></html>

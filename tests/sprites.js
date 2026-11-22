@@ -5,6 +5,7 @@ const vm = require('vm'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 require('./lib/canvas-shim').install(root);
 const { decodePNG } = require('./lib/png');
+const { metrics } = require('./lib/metrics');
 for (const f of ['util', 'sprite', 'spritegen']) vm.runInThisContext(fs.readFileSync(path.join(root, 'engine', f + '.js'), 'utf8'), { filename: f + '.js' });
 const E = vm.runInThisContext('({ PORT, SPR, GEN, DH, genHeroSet, dhInit, dhLoadPortrait, dhFrame })');
 
@@ -93,6 +94,25 @@ const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) failed+
   const purple = d => { let c = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] && d[i] === 156 && d[i + 1] === 39 && d[i + 2] === 176) c++; return c; };
   const bl = set.anims.attack_L.frames.map(i => purple(px(set.frames[i])));
   ok(bl[1] > bl[0] && bl[2] > bl[0] && bl[3] > bl[0], `attack frames show the blade (purple pixels: ${bl.join(', ')})`);
+
+  // ---- visual defects: counted, with limits (see tests/lib/metrics.js). The original drawing is the baseline.
+  const base = metrics(P, PORT.W, PORT.H, null);
+  const LIMITS = { idle: [24, 3], walk: [28, 3], dash: [24, 3], death: [24, 3], attack: [60, 5] };      // [new 2x2 patterns, extra exposed edge pixels]; the blade adds patterns by definition
+  const worst = {}, failedBefore = failed;
+  for (const an in set.anims) {
+    if (!an.endsWith('_L')) continue;                    // _R frames are proven exact mirrors of _L below, so measuring _L covers both
+    const kind = an.slice(0, an.indexOf('_')), [maxNew, maxExp] = LIMITS[kind];
+    set.anims[an].frames.forEach((fi, k) => {
+      const c = set.frames[fi], m = metrics(px(c), c.width, c.height, base.pats), where = `${an}[${k}]`;
+      const w = worst[kind] = worst[kind] || { n: 0, e: 0, at: '' };
+      if (m.new2x2 > w.n) { w.n = m.new2x2; w.at = where; } w.e = Math.max(w.e, m.exposed - base.exposed);
+      if (m.new2x2 > maxNew) ok(false, `${where}: ${m.new2x2} new 2x2 patterns (limit ${maxNew}) - torn or broken pixels`);
+      if (m.exposed - base.exposed > maxExp) ok(false, `${where}: ${m.exposed - base.exposed} extra exposed edge pixels (limit ${maxExp}) - a cut outline`);
+      if (m.orphans !== 0) ok(false, `${where}: ${m.orphans} stray pixel(s)`);
+      if (m.holes !== base.holes) ok(false, `${where}: ${m.holes} enclosed gaps (the drawing has ${base.holes})`);
+    });
+  }
+  ok(failed === failedBefore, 'no frame has torn pixels, cut outlines, stray dots or new gaps  [worst per animation: ' + Object.entries(worst).map(([k, w]) => `${k} ${w.n}px-patterns/+${w.e}edge`).join(', ') + ']');
 
   // ---- loader fallbacks: no saved art -> generated set; the engine must end up ready with every animation present
   await E.dhInit('');
