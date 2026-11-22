@@ -1,0 +1,117 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Darkheart Editor</title>
+<style>
+body{margin:0;background:#120b1a;color:#ddd;font:13px monospace;display:flex;flex-direction:column;height:100vh}
+#top{display:flex;flex:1;min-height:0}
+#left,#right{width:220px;padding:10px;overflow:auto;background:#1a1024;box-sizing:border-box}
+#center{flex:1;display:flex;justify-content:center;align-items:center;background:#0b0610;overflow:auto}
+button,select,input{background:#2b1a3a;color:#eee;border:1px solid #6a3a8a;padding:4px 6px;font:inherit;cursor:pointer;margin:2px 0}
+button.on{background:#7a2a9a}input[type=text],input[type=number]{cursor:text;width:100px}
+#strip{height:118px;background:#1a1024;display:flex;align-items:center;gap:6px;padding:6px;overflow-x:auto;box-sizing:border-box}
+.th{border:2px solid #333;background:#222;cursor:pointer;height:88px;image-rendering:pixelated}.th.on{border-color:#c6f}
+#pal span{display:inline-block;width:18px;height:18px;margin:1px;border:1px solid #000;cursor:pointer}
+h4{margin:12px 0 4px;color:#c6f}
+#ed{image-rendering:pixelated;cursor:crosshair;border:1px solid #6a3a8a}
+#pv{image-rendering:pixelated;background:#222;border:1px solid #6a3a8a}
+#st{color:#fc4;margin-top:8px;min-height:32px}
+</style></head><body>
+<div id="top">
+<div id="left">
+<h4>TOOLS</h4>
+<button id="t_pencil" class="on">Pencil B</button> <button id="t_erase">Eraser E</button><br>
+<button id="t_fill">Fill G</button> <button id="t_pick">Pick I</button><br>
+<h4>COLOR</h4><input type="color" id="col" value="#aa1111"><div id="pal"></div>
+<h4>EDIT</h4>
+<button id="undo">Undo (Ctrl+Z)</button><br><button id="clear">Clear frame</button><br><button id="flip">Flip frame H</button><br>
+<label><input type="checkbox" id="onion" checked> onion skin</label><br><label><input type="checkbox" id="grid" checked> grid</label>
+<h4>FILE</h4>
+<button id="save">Save to game</button><br><button id="reload">Reload from game</button><br><button id="export">Export PNG sheet</button><br>
+<a href="arena.html" target="_blank" style="color:#6cf">Open game</a>
+<div id="st"></div>
+</div>
+<div id="center"><canvas id="ed"></canvas></div>
+<div id="right">
+<h4>ANIMATION</h4>
+<select id="an"></select><br>
+<input type="text" id="newname" placeholder="new anim name"><button id="addan">+</button>
+<h4>FRAMES (indexes)</h4>
+<input type="text" id="seq" placeholder="0,1,2"><br>
+<button id="addcur">+ current frame</button><br>
+FPS <input type="number" id="fps" value="8" min="1" max="30" style="width:50px"><br>
+<label><input type="checkbox" id="loop" checked> loop</label>
+<h4>PREVIEW</h4><canvas id="pv"></canvas>
+<div style="color:#999;margin-top:6px">Empty animation = the game uses built-in motion (bob, lean, stretch) on frame 0.</div>
+</div>
+</div>
+<div id="strip"></div>
+<script src="engine/sprite.js"></script>
+<script>
+const W=SPR.W,H=SPR.H,Z=8,$=id=>document.getElementById(id);
+const NAMES=['idle','walk','dash','attack','death'];
+let frames=[],cur=0,anims={},ca='idle',tool='pencil',color='#aa1111',undo=[],drawing=false,last=null;
+const ed=$('ed'),ex=ed.getContext('2d');ed.width=W*Z;ed.height=H*Z;
+const pv=$('pv'),px=pv.getContext('2d');pv.width=W*3;pv.height=H*3;
+const mkC=()=>dhCanvas(),cx=()=>frames[cur].getContext('2d');
+const status=s=>$('st').textContent=s;
+function hex(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+function render(){ex.imageSmoothingEnabled=false;for(let y=0;y<H;y++)for(let x=0;x<W;x++){ex.fillStyle=(x+y)%2?'#2a2a33':'#23232b';ex.fillRect(x*Z,y*Z,Z,Z)}
+if($('onion').checked&&cur>0){ex.globalAlpha=.3;ex.drawImage(frames[cur-1],0,0,W*Z,H*Z);ex.globalAlpha=1}
+ex.drawImage(frames[cur],0,0,W*Z,H*Z);
+if($('grid').checked){ex.strokeStyle='rgba(255,255,255,.08)';ex.beginPath();for(let x=0;x<=W;x++){ex.moveTo(x*Z,0);ex.lineTo(x*Z,H*Z)}for(let y=0;y<=H;y++){ex.moveTo(0,y*Z);ex.lineTo(W*Z,y*Z)}ex.stroke()}
+strip();syncAnim()}
+function strip(){const s=$('strip');s.innerHTML='';
+const b=(t,f)=>{const e=document.createElement('button');e.textContent=t;e.onclick=f;s.appendChild(e)};
+b('New',()=>{frames.splice(cur+1,0,mkC());shiftIdx(cur+1,1);cur++;undo=[];render()});
+b('Dup',()=>{const c=mkC();c.getContext('2d').drawImage(frames[cur],0,0);frames.splice(cur+1,0,c);shiftIdx(cur+1,1);cur++;undo=[];render()});
+b('Del',()=>{if(frames.length<2)return;const d=cur;frames.splice(d,1);for(const a of Object.values(anims))a.frames=a.frames.filter(i=>i!=d).map(i=>i>d?i-1:i);cur=Math.min(cur,frames.length-1);undo=[];render()});
+b('<',()=>mv(-1));b('>',()=>mv(1));
+frames.forEach((f,i)=>{const c=mkC();c.getContext('2d').drawImage(f,0,0);c.className='th'+(i==cur?' on':'');c.title='frame '+i;c.onclick=()=>{cur=i;render()};s.appendChild(c);const l=document.createElement('span');l.textContent=i;s.appendChild(l)})}
+function shiftIdx(from,d){for(const a of Object.values(anims))a.frames=a.frames.map(i=>i>=from?i+d:i)}
+function mv(d){const j=cur+d;if(j<0||j>=frames.length)return;[frames[cur],frames[j]]=[frames[j],frames[cur]];for(const a of Object.values(anims))a.frames=a.frames.map(i=>i==cur?j:i==j?cur:i);cur=j;undo=[];render()}
+function syncAnim(){const a=anims[ca];$('an').innerHTML=Object.keys(anims).map(n=>'<option'+(n==ca?' selected':'')+'>'+n+'</option>').join('');$('seq').value=a.frames.join(',');$('fps').value=a.fps;$('loop').checked=a.loop!==false}
+$('an').onchange=e=>{ca=e.target.value;syncAnim()};
+$('addan').onclick=()=>{const n=$('newname').value.trim().replace(/[^a-z0-9_]/gi,'');if(n&&!anims[n]){anims[n]={frames:[],fps:8,loop:true};ca=n;$('newname').value='';syncAnim()}};
+$('seq').onchange=e=>{anims[ca].frames=e.target.value.split(',').map(s=>parseInt(s)).filter(i=>i>=0&&i<frames.length)};
+$('addcur').onclick=()=>{anims[ca].frames.push(cur);syncAnim()};
+$('fps').onchange=e=>anims[ca].fps=Math.max(1,+e.target.value||8);
+$('loop').onchange=e=>anims[ca].loop=e.target.checked;
+// drawing
+const pos=e=>{const r=ed.getBoundingClientRect();return[Math.floor((e.clientX-r.left)/r.width*W),Math.floor((e.clientY-r.top)/r.height*H)]};
+function plot(x,y){if(x<0||y<0||x>=W||y>=H)return;const c=cx();if(tool=='erase')c.clearRect(x,y,1,1);else{c.fillStyle=color;c.fillRect(x,y,1,1)}}
+function line(a,b){let[x0,y0]=a;const[x1,y1]=b,dx=Math.abs(x1-x0),dy=-Math.abs(y1-y0),sx=x0<x1?1:-1,sy=y0<y1?1:-1;let e=dx+dy;for(;;){plot(x0,y0);if(x0==x1&&y0==y1)break;const e2=2*e;if(e2>=dy){e+=dy;x0+=sx}if(e2<=dx){e+=dx;y0+=sy}}}
+function fill(x,y){const c=cx(),d=c.getImageData(0,0,W,H),k=(i,j)=>(j*W+i)*4,o=k(x,y),t=[d.data[o],d.data[o+1],d.data[o+2],d.data[o+3]],[r,g,b]=hex(color);
+if(t[0]==r&&t[1]==g&&t[2]==b&&t[3]==255)return;const st=[[x,y]];
+while(st.length){const[i,j]=st.pop();if(i<0||j<0||i>=W||j>=H)continue;const q=k(i,j);if(d.data[q]!=t[0]||d.data[q+1]!=t[1]||d.data[q+2]!=t[2]||d.data[q+3]!=t[3])continue;d.data[q]=r;d.data[q+1]=g;d.data[q+2]=b;d.data[q+3]=255;st.push([i+1,j],[i-1,j],[i,j+1],[i,j-1])}c.putImageData(d,0,0)}
+function pushUndo(){undo.push({i:cur,d:cx().getImageData(0,0,W,H)});if(undo.length>60)undo.shift()}
+function doUndo(){const u=undo.pop();if(u&&frames[u.i]){frames[u.i].getContext('2d').putImageData(u.d,0,0);cur=u.i;render()}}
+ed.addEventListener('pointerdown',e=>{const p=pos(e);if(tool=='pick'){const d=cx().getImageData(p[0],p[1],1,1).data;if(d[3]){color='#'+[d[0],d[1],d[2]].map(v=>v.toString(16).padStart(2,'0')).join('');$('col').value=color}return}
+pushUndo();if(tool=='fill')fill(p[0],p[1]);else{drawing=true;last=p;plot(p[0],p[1])}render();ed.setPointerCapture(e.pointerId)});
+ed.addEventListener('pointermove',e=>{if(!drawing)return;const p=pos(e);line(last,p);last=p;render()});
+addEventListener('pointerup',()=>drawing=false);
+for(const t of['pencil','erase','fill','pick'])$('t_'+t).onclick=()=>setTool(t);
+function setTool(t){tool=t;for(const n of['pencil','erase','fill','pick'])$('t_'+n).className=n==t?'on':''}
+$('col').oninput=e=>{color=e.target.value;if(tool=='erase'||tool=='pick')setTool('pencil')};
+$('undo').onclick=doUndo;$('clear').onclick=()=>{pushUndo();cx().clearRect(0,0,W,H);render()};
+$('flip').onclick=()=>{pushUndo();const t=mkC(),c=t.getContext('2d');c.translate(W,0);c.scale(-1,1);c.drawImage(frames[cur],0,0);cx().clearRect(0,0,W,H);cx().drawImage(t,0,0);render()};
+$('onion').onchange=render;$('grid').onchange=render;
+addEventListener('keydown',e=>{if(e.target.tagName=='INPUT'&&e.target.type!='checkbox'&&e.target.type!='color')return;
+if(e.ctrlKey&&e.key=='z'){doUndo();e.preventDefault();return}
+const m={b:'pencil',e:'erase',g:'fill',i:'pick'}[e.key.toLowerCase()];if(m)setTool(m);
+if(e.key=='ArrowLeft'&&cur>0){cur--;render()}if(e.key=='ArrowRight'&&cur<frames.length-1){cur++;render()}});
+function palette(){const seen=new Set(),p=$('pal');p.innerHTML='';const d=frames[0].getContext('2d').getImageData(0,0,W,H).data;
+for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;const h='#'+[d[i],d[i+1],d[i+2]].map(v=>v.toString(16).padStart(2,'0')).join('');if(seen.has(h)||seen.size>=40)continue;seen.add(h);
+const s=document.createElement('span');s.style.background=h;s.onclick=()=>{color=h;$('col').value=h;if(tool!='fill')setTool('pencil')};p.appendChild(s)}}
+// file
+async function load(){await dhInit('');frames=DH.frames.map(f=>{const c=mkC();c.getContext('2d').drawImage(f,0,0);return c});anims={};
+for(const n of NAMES)anims[n]=DH.anims[n]?JSON.parse(JSON.stringify(DH.anims[n])):{frames:[],fps:8,loop:n!='death'&&n!='attack'};
+for(const n of Object.keys(DH.anims))if(!anims[n])anims[n]=JSON.parse(JSON.stringify(DH.anims[n]));
+cur=0;ca='idle';undo=[];palette();render();status('Loaded '+frames.length+' frame(s).')}
+$('reload').onclick=load;
+$('save').onclick=async()=>{const body=JSON.stringify({w:W,h:H,frames:frames.map(f=>f.toDataURL()),anims});try{const r=await fetch('/save',{method:'POST',body});status(r.ok?'Saved to assets/darkheart.json. Reload the game to see it.':'Save failed ('+r.status+')')}catch(e){status('Save failed: '+e)}};
+$('export').onclick=()=>{const c=document.createElement('canvas');c.width=W*frames.length;c.height=H;frames.forEach((f,i)=>c.getContext('2d').drawImage(f,i*W,0));c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='darkheart_sheet.png';a.click()})};
+// preview
+(function pl(){requestAnimationFrame(pl);px.clearRect(0,0,pv.width,pv.height);px.imageSmoothingEnabled=false;const a=anims[ca];if(!a||!frames.length)return;
+let f=frames[cur];if(a.frames.length){const n=a.frames.length;let i=Math.floor(performance.now()/1000*a.fps);i=a.loop===false?Math.min(i%(n+3),n-1):i%n;f=frames[a.frames[i]]||f}
+px.drawImage(f,0,0,W*3,H*3)})();
+load();
+</script></body></html>
