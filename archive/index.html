@@ -17,7 +17,7 @@ const A=20;
 const floor=new THREE.Mesh(new THREE.PlaneGeometry(A*2,A*2),new THREE.MeshStandardMaterial({color:0x1a1424}));
 floor.rotation.x=-Math.PI/2;S.add(floor);S.add(new THREE.GridHelper(A*2,40,0x6a2a8a,0x2a1a3a));
 // hero sprite: key out white background
-const img=new Image();img.src='hero.png';
+const img=new Image();img.src='../hero.png';
 const hero=new THREE.Group();S.add(hero);
 img.onload=()=>{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;const x=c.getContext('2d');x.drawImage(img,0,0);
 const d=x.getImageData(0,0,c.width,c.height);for(let i=0;i<d.data.length;i+=4)if(d.data[i]>235&&d.data[i+1]>235&&d.data[i+2]>235)d.data[i+3]=0;x.putImageData(d,0,0);

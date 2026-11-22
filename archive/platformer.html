@@ -4,7 +4,7 @@
 <body><canvas id="c" width="960" height="540"></canvas>
 <script>
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),W=960,H=540,GY=460,LEN=6300;
-const img=new Image();img.src='hero.png';let spr=null;
+const img=new Image();img.src='../hero.png';let spr=null;
 img.onload=()=>{const c=document.createElement('canvas');c.width=570;c.height=1045;const x=c.getContext('2d');x.drawImage(img,320,105,570,1045,0,0,570,1045);
 const d=x.getImageData(0,0,570,1045);for(let i=0;i<d.data.length;i+=4)if(d.data[i]>235&&d.data[i+1]>235&&d.data[i+2]>235)d.data[i+3]=0;x.putImageData(d,0,0);spr=c};
 const ground=[[0,900],[1050,2000],[2150,3200],[3350,4400],[4550,LEN]];
