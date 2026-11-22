@@ -48,7 +48,7 @@ FPS <input type="number" id="fps" value="8" min="1" max="30" style="width:50px">
 <script src="engine/spritegen.js"></script>
 <script src="engine/sprite.js"></script>
 <script>
-const W=SPR.W,H=SPR.H,Z=10,$=id=>document.getElementById(id);
+const W=SPR.W,H=SPR.H,Z=9,$=id=>document.getElementById(id);
 const NAMES=['idle','walk','dash','attack','death'];
 let frames=[],cur=0,anims={},ca='idle',tool='pencil',color='#aa1111',undo=[],drawing=false,last=null;
 const ed=$('ed'),ex=ed.getContext('2d');ed.width=W*Z;ed.height=H*Z;

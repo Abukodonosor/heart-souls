@@ -2,7 +2,7 @@
 // Hero art loader. A native frame is 36x52 (feet on row 48). Frames come from, in priority order:
 //   1. assets/darkheart.json  (saved by editor.html)    2. genHeroSet() in spritegen.js  (procedural defaults, 5 dirs + mirrors)
 // DH.portrait is the original hero.png converted to real pixels (title screen, the Mirror boss).
-const SPR = { W: 36, H: 52, FEET: 48 };
+const SPR = { W: 48, H: 76, FEET: 72 };
 const PORT = { W: 40, H: 72, PX: 15, ox: 315, oy: 105 };       // geometry of the source art: 15px blocks
 const DH = { frames: [], anims: {}, portrait: null, ready: false };
 const dhCanvas = () => { const c = document.createElement('canvas'); c.width = SPR.W; c.height = SPR.H; return c; };
@@ -37,7 +37,7 @@ async function dhInit(prefix = '') {
       DH.anims = j.anims || {};
     }
   } catch (e) { /* no saved art yet: use the generated set */ }
-  const gen = genHeroSet();                                     // fill in every animation the editor has not authored
+  const gen = genHeroSet(DH.portrait);                                     // fill in every animation the editor has not authored
   for (const n in gen.anims) {
     if (DH.anims[n] && DH.anims[n].frames.length) continue;
     const a = gen.anims[n];

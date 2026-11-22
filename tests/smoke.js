@@ -19,7 +19,7 @@ for (const f of ['util', 'spritegen', 'sprite', 'save', 'audio', 'fx', 'core', '
 const test = `
 (function () {
   let failed = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) failed++; };
-  DH.ready = true; DH.portrait = { width: 40, height: 72 }; DH.frames = [{ width: 36, height: 52 }];
+  DH.ready = true; DH.portrait = { width: 40, height: 72 }; DH.frames = [{ width: 48, height: 76 }];
   for (const mode of ['abyss', 'souls']) {
     SAVE.d.mode = mode;
     for (let i = 0; i < BOSSES.length; i++) {
@@ -55,7 +55,6 @@ const test = `
   P.drink = 0; just.KeyF = 1; update(1 / 60); for (let f = 0; f < 80; f++) update(1 / 60); ok(P.hp === 5 && P.flasks === 2, 'souls: flask heals');
   // dash i-frames
   begin(0); state = 'play'; P.inv = 0; P.dash = 0.1; hurt(); ok(P.hp === P.maxhp, 'dash is invulnerable');
-  ok(dirName(0) === 'E' && dirName(PI / 2) === 'S' && dirName(PI) === 'W' && dirName(-PI / 2) === 'N' && dirName(3 * PI / 4) === 'SW' && dirName(-PI / 4) === 'NE', '8-direction mapping');
   // bolt: throw, ground, pickup
   begin(0); state = 'play'; just.KeyK = 1; update(1 / 60); delete just.KeyK; ok(P.bolt.s === 'fly', 'bolt throws');
   for (let f = 0; f < 120; f++) update(1 / 60); ok(P.bolt.s === 'ground', 'bolt lands'); P.x = P.bolt.x; P.y = P.bolt.y; update(1 / 60); ok(P.bolt.s === 'held', 'walking over the bolt picks it up');

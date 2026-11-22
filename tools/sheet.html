@@ -1,12 +1,11 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Darkheart sprite sheet</title>
-<style>body{margin:8px;background:#1a1024;color:#ccc;font:12px monospace}canvas{image-rendering:pixelated;background:#2a2a33;margin:2px;border:1px solid #333}.row{display:flex;align-items:center}b{width:34px;display:inline-block;color:#c6f}</style></head>
+<style>body{margin:8px;background:#1a1024;color:#ccc;font:12px monospace}canvas{image-rendering:pixelated;background:#2a2a33;margin:2px;border:1px solid #333}h4{color:#fc4;margin:8px 2px 2px}</style></head>
 <body><div id="o"></div>
-<script src="../engine/util.js"></script><script src="../engine/spritegen.js"></script>
+<script src="../engine/util.js"></script><script src="../engine/spritegen.js"></script><script src="../engine/sprite.js"></script>
 <script>
-// usage: sheet.html?anims=idle,walk&scale=4
-const q=new URLSearchParams(location.search),S=+(q.get('scale')||4),names=(q.get('anims')||'idle,walk').split(',');
-const set=genHeroSet(),o=document.getElementById('o');
-for(const an of names){o.insertAdjacentHTML('beforeend','<h4 style="color:#fc4;margin:6px 0 2px">'+an+'</h4>');
-for(const d of HDIR_LIST){const row=document.createElement('div');row.className='row';row.innerHTML='<b>'+d+'</b>';
-for(const fi of set.anims[an+'_'+d].frames){const c=document.createElement('canvas');c.width=HW;c.height=HH;c.style.width=HW*S+'px';c.style.height=HH*S+'px';c.getContext('2d').drawImage(set.frames[fi],0,0);row.appendChild(c)}o.appendChild(row)}}
+// usage: sheet.html?anims=idle,walk&scale=4   (frames built from the original art)
+(async()=>{const q=new URLSearchParams(location.search),S=+(q.get('scale')||4),names=(q.get('anims')||'idle').split(',');
+const set=genHeroSet(await dhLoadPortrait('../')),o=document.getElementById('o');
+for(const an of names){o.insertAdjacentHTML('beforeend','<h4>'+an+' ('+set.anims[an].frames.length+' frames @ '+set.anims[an].fps+'fps)</h4>');
+for(const fi of set.anims[an].frames){const c=document.createElement('canvas');c.width=SPR.W;c.height=SPR.H;c.style.width=SPR.W*S+'px';c.style.height=SPR.H*S+'px';c.getContext('2d').drawImage(set.frames[fi],0,0);o.appendChild(c)}}})();
 </script></body></html>

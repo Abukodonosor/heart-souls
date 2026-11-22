@@ -106,21 +106,18 @@ function drawBoss() {
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(w.x, w.y, B.weak.r + 4 + Math.sin(t * 10) * 2, 0, TAU); ctx.stroke();
   } else { ctx.fillStyle = '#2a2a33'; ctx.beginPath(); ctx.arc(w.x, w.y, B.weak.r * 0.45, 0, TAU); ctx.fill(); }
 }
-const D8 = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
-const MIRROR = { SW: 'SE', W: 'E', NW: 'NE' };            // W-side directions reuse the E-side art, flipped
-const dirName = a => D8[((Math.round(a / (PI / 4)) % 8) + 8) % 8];
 function drawPlayer() {
   ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.beginPath(); ctx.ellipse(P.x, P.y + 10, 12, 5, 0, 0, TAU); ctx.fill();
   if (!DH.ready) return;
   const nm = state === 'dead' ? 'death' : P.dash > 0 ? 'dash' : P.swing > 0 ? 'attack' : (P.vx || P.vy) ? 'walk' : 'idle';
   if (P.nm !== nm) { P.nm = nm; P.ts = t; }
-  if (nm !== 'death') P.fa = P.dash > 0 ? Math.atan2(P.dy, P.dx) : P.swing > 0 ? P.sa : P.aim;   // face where you aim; remember it for the death pose
-  const d8 = dirName(P.fa || 0), base = MIRROR[d8] || d8, flip = !!MIRROR[d8];
-  const im = dhFrame(nm + '_' + base, t - P.ts) || DH.frames[0]; if (!im) return;
-  let al = 1; if (nm === 'dash') al = 0.6;
+  if (nm !== 'death') P.fa = P.dash > 0 ? Math.atan2(P.dy, P.dx) : P.swing > 0 ? P.sa : P.aim;   // face where you aim; remembered for the death pose
+  const flip = Math.cos(P.fa || 0) > 0.05;                  // the source art looks left, so aiming right mirrors it
+  const im = dhFrame(nm, t - P.ts) || DH.frames[0]; if (!im) return;
+  let al = 1; if (nm === 'dash') al = 0.65;
   if (nm === 'death') al = Math.max(0, 1 - Math.max(0, t - P.ts - 0.6) * 0.8);
   if (P.inv > 0 && state === 'play' && Math.floor(t * 20) % 2) al *= 0.35;                     // post-hit blink
-  const S = 1.3;
+  const S = 0.8;
   ctx.save(); ctx.globalAlpha = al; ctx.translate(P.x, P.y + 10); ctx.imageSmoothingEnabled = false;
   if (P.burst > 0) { ctx.shadowColor = '#6af'; ctx.shadowBlur = 20; } else if (P.drink > 0) { ctx.shadowColor = '#f93'; ctx.shadowBlur = 18; }
   if (flip) ctx.scale(-1, 1);
