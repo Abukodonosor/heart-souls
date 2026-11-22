@@ -23,12 +23,15 @@ each boss holds a fragment of it.
 - Save (localStorage): cleared bosses, best times, deaths, mode, volume.
 
 ## Architecture (`engine/`)
-- `util.js` math helpers - `sprite.js` hero frames/animation loader - `save.js` persistence
-- `audio.js` WebAudio synth (sfx + music) - `fx.js` shake/hit-stop/particles/texts
-- `core.js` state, input, player, boss scheduler, hazards - `ui.js` menus - `render.js` drawing
-- `bosses.js` boss scripts (generators: `yield n` waits n seconds) - `main.js` loop
-- `tools/server.py` dev server + editor save endpoint, `editor.html` sprite/animation editor
-- `tests/smoke.js` headless simulation of every boss (`node tests/smoke.js`)
+- `util.js` math helpers - `save.js` persistence (validated, never trusted) - `audio.js` WebAudio synth (sfx + music) - `fx.js` shake/hit-stop/particles/texts
+- `sprite.js` hero art loader (portrait, saved art, generated set) - `spritegen.js` builds every animation from `hero.png`
+- `core.js` state, input, player, boss scheduler, hazards - `ui.js` menus - `render.js` drawing - `bosses.js` boss scripts (generators: `yield n` waits n seconds) - `main.js` loop
+- `tools/` dev server + editor save endpoint, benchmark, sprite tooling - `tests/` headless smoke + sprite tests (`npm test`)
+
+## Hero art pipeline
+The drawing (`hero.png`, 48x87 art pixels on a 12px grid) is the single source of truth. Frames are built by moving rows (head bob, cloak ripple, lean)
+and the hand block (arm swing), never by redrawing, so the character always looks exactly like the original. The Abyssal Blade is the only drawn addition.
+Directions: the drawing faces left; `_R` frames are exact mirrors. Views from behind / the side would be new art and must come from the artist.
 
 ## Next run: TOWER DEFENCE
 Reuse engine pieces (zones, bullets, FX, audio, save, editor). New: path/grid, tower placement, waves.

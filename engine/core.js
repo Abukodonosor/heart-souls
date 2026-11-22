@@ -84,6 +84,7 @@ function newPlayer() {
     bolt: { s: 'held', x: 0, y: 0, vx: 0, vy: 0, life: 0, hit: 0, type: 0 } };
 }
 function begin(i) {
+  if (!BOSSES[i]) return;
   bi = i; MODE = MODES[SAVE.d.mode] || MODES.abyss;
   P = newPlayer(); B = BOSSES[i](); B.gen = B.script();
   zones = []; bullets = []; clearInfo = null; FX.clear();

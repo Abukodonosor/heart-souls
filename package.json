@@ -1,0 +1,12 @@
+{
+  "name": "darkheart",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pixel-art top-down souls-like boss rush. No dependencies.",
+  "scripts": {
+    "start": "python3 tools/server.py",
+    "test": "node tests/smoke.js && node tests/sprites.js",
+    "test:sprites": "node tests/sprites.js"
+  },
+  "engines": { "node": ">=18" }
+}

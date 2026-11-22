@@ -244,7 +244,7 @@ function drawTitle() {
   floorBackdrop();
   ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(A.x, A.y, A.w, A.h);
   if (Math.random() < 0.3) FX.parts.push({ x: rr(A.x, A.x + A.w), y: A.y + A.h, vx: rr(-6, 6), vy: -rr(20, 60), l: 5, m: 5, size: 2, c: '#a0f', drag: 0 });
-  if (DH.ready) {                                              // the hero, large, breathing
+  if (DH.ready && DH.portrait) {                               // the hero, large, breathing
     const im = DH.portrait, S = 2.7, bob = Math.sin(t * 2) * 3;
     ctx.save(); ctx.imageSmoothingEnabled = false; ctx.shadowColor = '#a0f'; ctx.shadowBlur = 24;
     ctx.drawImage(im, 150, 120 + bob, im.width * S, im.height * S); ctx.restore();

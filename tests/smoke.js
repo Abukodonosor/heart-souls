@@ -55,6 +55,10 @@ const test = `
   P.drink = 0; just.KeyF = 1; update(1 / 60); for (let f = 0; f < 80; f++) update(1 / 60); ok(P.hp === 5 && P.flasks === 2, 'souls: flask heals');
   // dash i-frames
   begin(0); state = 'play'; P.inv = 0; P.dash = 0.1; hurt(); ok(P.hp === P.maxhp, 'dash is invulnerable');
+  // corrupt / hand-edited save data must be sanitised, never trusted
+  ok(JSON.stringify(SAVE.clean({ cleared: 'x', mode: 'evil', vol: 9, best: { a: 1, '2': -5, '1': 12.5 }, deaths: { '0': 3 }, totalDeaths: -1 })) === JSON.stringify({ cleared: [], best: { '1': 12.5 }, deaths: { '0': 3 }, mode: 'abyss', vol: 1, totalDeaths: 0 }), 'corrupt save data is sanitised');
+  ok(SAVE.clean(null).mode === 'abyss' && SAVE.clean('junk').cleared.length === 0 && SAVE.clean({ cleared: [2, 2, 0, -1, 1.5, 'z'] }).cleared.join() === '0,2', 'save: junk input and duplicate/invalid clears are handled');
+  { const st = state; begin(99); ok(state === st, 'begin() ignores a boss index that does not exist'); }
   // bolt: throw, ground, pickup
   begin(0); state = 'play'; just.KeyK = 1; update(1 / 60); delete just.KeyK; ok(P.bolt.s === 'fly', 'bolt throws');
   for (let f = 0; f < 120; f++) update(1 / 60); ok(P.bolt.s === 'ground', 'bolt lands'); P.x = P.bolt.x; P.y = P.bolt.y; update(1 / 60); ok(P.bolt.s === 'held', 'walking over the bolt picks it up');

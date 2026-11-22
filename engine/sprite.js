@@ -10,8 +10,9 @@ const DH = { frames: [], anims: {}, portrait: null, ready: false };
 const dhCanvas = () => { const c = document.createElement('canvas'); c.width = SPR.W; c.height = SPR.H; return c; };
 
 function dhLoadPortrait(prefix) {
-  return new Promise(res => {
+  return new Promise((res, rej) => {
     const im = new Image();
+    im.onerror = () => rej(new Error(prefix + 'hero.png failed to load'));
     im.onload = () => {
       const s = document.createElement('canvas'); s.width = im.width; s.height = im.height;
       const sx = s.getContext('2d'); sx.drawImage(im, 0, 0);
@@ -27,23 +28,33 @@ function dhLoadPortrait(prefix) {
     im.src = prefix + 'hero.png';
   });
 }
-async function dhInit(prefix = '') {
-  DH.portrait = await dhLoadPortrait(prefix); DH.frames = []; DH.anims = {};
+// Art saved by the editor. Rejected (with a console warning) when it does not match this build's frame size or shape,
+// e.g. an old save from before the frame size changed: stale art must never break the game.
+async function dhLoadSaved(prefix) {
+  let j;
+  try { const r = await fetch(prefix + 'assets/darkheart.json?' + Date.now()); if (!r.ok) return null; j = await r.json(); } catch (e) { return null; }
+  if (!j || j.w !== SPR.W || j.h !== SPR.H || !Array.isArray(j.frames) || !j.anims || typeof j.anims !== 'object') { console.warn('Darkheart: saved art ignored (size or format does not match this build)'); return null; }
   try {
-    const r = await fetch(prefix + 'assets/darkheart.json?' + Date.now());
-    if (r.ok) {
-      const j = await r.json();
-      DH.frames = await Promise.all(j.frames.map(u => new Promise(res => { const im = new Image(); im.onload = () => { const c = dhCanvas(); c.getContext('2d').drawImage(im, 0, 0); res(c); }; im.src = u; })));
-      DH.anims = j.anims || {};
+    const frames = await Promise.all(j.frames.map(u => new Promise((res, rej) => { const im = new Image(); im.onerror = () => rej(new Error('bad frame')); im.onload = () => { const c = dhCanvas(); c.getContext('2d').drawImage(im, 0, 0); res(c); }; im.src = u; })));
+    const anims = {};
+    for (const [n, a] of Object.entries(j.anims)) if (a && Array.isArray(a.frames) && a.frames.every(i => Number.isInteger(i) && i >= 0 && i < frames.length)) anims[n] = { frames: a.frames, fps: Number(a.fps) > 0 ? Number(a.fps) : 8, loop: a.loop !== false };
+    return { frames, anims };
+  } catch (e) { console.warn('Darkheart: saved art ignored (' + e.message + ')'); return null; }
+}
+async function dhInit(prefix = '') {
+  DH.portrait = null; DH.frames = []; DH.anims = {};
+  try { DH.portrait = await dhLoadPortrait(prefix); } catch (e) { console.error('Darkheart: ' + e.message); }
+  if (DH.portrait) {
+    const saved = await dhLoadSaved(prefix);
+    if (saved) { DH.frames = saved.frames; DH.anims = saved.anims; }
+    const gen = genHeroSet(DH.portrait);                          // fill in every animation the editor has not authored
+    for (const n in gen.anims) {
+      if (DH.anims[n] && DH.anims[n].frames.length) continue;
+      const a = gen.anims[n];
+      DH.anims[n] = { ...a, frames: a.frames.map(i => { DH.frames.push(gen.frames[i]); return DH.frames.length - 1; }) };
     }
-  } catch (e) { /* no saved art yet: use the generated set */ }
-  const gen = genHeroSet(DH.portrait);                                     // fill in every animation the editor has not authored
-  for (const n in gen.anims) {
-    if (DH.anims[n] && DH.anims[n].frames.length) continue;
-    const a = gen.anims[n];
-    DH.anims[n] = { ...a, frames: a.frames.map(i => { DH.frames.push(gen.frames[i]); return DH.frames.length - 1; }) };
   }
-  DH.ready = true;
+  DH.ready = true;                                                // even without art the game runs; drawing code skips a missing hero
 }
 function dhFrame(name, time) {
   const a = DH.anims[name]; if (!a || !a.frames || !a.frames.length) return null;
