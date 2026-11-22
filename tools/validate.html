@@ -19,7 +19,7 @@
  // ---- engine output
  const port=await dhLoadPortrait('../'),set=genHeroSet(port);
  const px=c=>c.getContext('2d').getImageData(0,0,c.width,c.height).data;
- const P=px(port),F0=px(set.frames[set.anims.idle.frames[0]]);
+ const P=px(port),F0=px(set.frames[set.anims.idle_L.frames[0]]);
  let opaque=0,white=0;const palette=new Set();
  for(let i=0;i<P.length;i+=4)if(P[i+3]){opaque++;palette.add(P[i]+','+P[i+1]+','+P[i+2]);if(P[i]>235&&P[i+1]>235&&P[i+2]>235)white++}
  ok(opaque===rawOpaque,'portrait keeps every opaque pixel of the drawing ('+opaque+' vs '+rawOpaque+' read independently)');
@@ -37,21 +37,33 @@
   for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;cnt++;if(!palette.has(d[i]+','+d[i+1]+','+d[i+2]))bad++}
   for(let x=0;x<SPR.W;x++)for(const y of[0,SPR.H-1])if(d[(y*SPR.W+x)*4+3])clipped++;
   for(let y=0;y<SPR.H;y++)for(const x of[0,SPR.W-1])if(d[(y*SPR.W+x)*4+3])clipped++;
-  if(an!=='death'){minPx=Math.min(minPx,cnt);maxPx=Math.max(maxPx,cnt)}}
+  if(!an.startsWith('death')){minPx=Math.min(minPx,cnt);maxPx=Math.max(maxPx,cnt)}}
  ok(bad===0,'all '+n+' frames use only colours from the drawing ('+bad+' foreign pixels)');
  ok(clipped===0,'no frame touches the canvas edge ('+clipped+' edge pixels)');
  ok(minPx>opaque*0.9&&maxPx<opaque*1.1,'pixel count stays within 10% of the drawing, death excluded ('+minPx+'..'+maxPx+' vs '+opaque+')');
  for(const an in set.anims){const a=set.anims[an];const d0=px(set.frames[a.frames[0]]);let moved=false;
   for(const fi of a.frames.slice(1)){const d=px(set.frames[fi]);for(let i=0;i<d.length;i++)if(d[i]!==d0[i]){moved=true;break}if(moved)break}
   ok(moved,an+' animation changes between frames')}
+ // right-facing frames must be exact pixel mirrors of the left-facing ones
+ let mirrorBad=0,mirrorN=0;
+ for(const an in set.anims){if(!an.endsWith('_L'))continue;const L=set.anims[an].frames,R=set.anims[an.slice(0,-1)+'R'].frames;
+  ok(L.length===R.length,an+' and its _R twin have the same frame count');
+  L.forEach((li,k)=>{const a=px(set.frames[li]),b=px(set.frames[R[k]]);mirrorN++;let bad=false;
+   for(let y=0;y<SPR.H&&!bad;y++)for(let x=0;x<SPR.W&&!bad;x++){const i=(y*SPR.W+x)*4,j=(y*SPR.W+(SPR.W-1-x))*4;for(let t=0;t<4;t++)if(a[i+t]!==b[j+t]){bad=true;break}}
+   if(bad)mirrorBad++})}
+ ok(mirrorBad===0,'all '+mirrorN+' right-facing frames are exact mirrors of the left-facing ones ('+mirrorBad+' differ)');
+ // blade: attack frames must contain blade pixels (purple) while the rest frame must not
+ const purpleN=d=>{let n=0;for(let i=0;i<d.length;i+=4)if(d[i+3]&&d[i]===156&&d[i+1]===39&&d[i+2]===176)n++;return n};
+ const at=set.anims.attack_L.frames.map(i=>purpleN(px(set.frames[i])));
+ ok(at[1]>at[0]&&at[2]>at[0]&&at[3]>at[0],'attack frames show the blade (purple pixels per frame: '+at.join(', ')+')');
  // loops must close: last frame -> first frame is a small step, like every other step
  const dist=(a,b)=>{let c=0;for(let i=3;i<a.length;i+=4)if(a[i]!==b[i]||(a[i]&&(a[i-3]!==b[i-3]||a[i-2]!==b[i-2]||a[i-1]!==b[i-1])))c++;return c};
- for(const an of ['idle','walk']){const f=set.anims[an].frames.map(i=>px(set.frames[i])),steps=f.map((d,i)=>dist(d,f[(i+1)%f.length])),wrap=steps[steps.length-1];
+ for(const an of ['idle_L','walk_L']){const f=set.anims[an].frames.map(i=>px(set.frames[i])),steps=f.map((d,i)=>dist(d,f[(i+1)%f.length])),wrap=steps[steps.length-1];
   ok(wrap<=Math.max(...steps.slice(0,-1))*1.5+10,an+' loop closes smoothly (wrap step '+wrap+' px vs inner steps '+Math.min(...steps.slice(0,-1))+'..'+Math.max(...steps.slice(0,-1))+')')}
  log+='\n'+(fails?'FAILED '+fails:'ALL PASSED');o.textContent=log;document.title=fails?'FAIL':'PASS';
  const S=5,v=document.getElementById('v');v.insertAdjacentHTML('beforeend','<h4>drawing | idle[0] | diff (red = differs)</h4>');
  const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.style.width=w*S+'px';c.style.height=h*S+'px';v.appendChild(c);return c};
- mk(PORT.W,PORT.H).getContext('2d').drawImage(port,0,0);mk(SPR.W,SPR.H).getContext('2d').drawImage(set.frames[set.anims.idle.frames[0]],0,0);
+ mk(PORT.W,PORT.H).getContext('2d').drawImage(port,0,0);mk(SPR.W,SPR.H).getContext('2d').drawImage(set.frames[set.anims.idle_L.frames[0]],0,0);
  const dc=mk(PORT.W,PORT.H).getContext('2d'),dd=dc.createImageData(PORT.W,PORT.H);
  for(let y=0;y<PORT.H;y++)for(let x=0;x<PORT.W;x++){const a=(y*PORT.W+x)*4,b=((y+GEN.padY)*SPR.W+x+GEN.padX)*4;let d=false;for(let k=0;k<4;k++)if(P[a+k]!==F0[b+k])d=true;
   dd.data[a]=d?255:70;dd.data[a+1]=d?0:70;dd.data[a+2]=d?0:70;dd.data[a+3]=P[a+3]||d?255:0}

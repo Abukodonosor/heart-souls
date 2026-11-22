@@ -123,20 +123,20 @@ function drawPlayer() {
   if (!DH.ready) return;
   const nm = state === 'dead' ? 'death' : P.dash > 0 ? 'dash' : P.swing > 0 ? 'attack' : (P.vx || P.vy) ? 'walk' : 'idle';
   if (P.nm !== nm) { P.nm = nm; P.ts = t; }
-  if (nm !== 'death') P.fa = P.dash > 0 ? Math.atan2(P.dy, P.dx) : P.swing > 0 ? P.sa : P.aim;   // face where you aim; remembered for the death pose
-  const flip = Math.cos(P.fa || 0) > 0.05;                  // the source art looks left, so aiming right mirrors it
-  const im = dhFrame(nm, t - P.ts) || DH.frames[0]; if (!im) return;
+  if (nm !== 'death') {                                     // facing: attacks and dashes follow their direction, walking follows movement, standing follows the aim
+    P.faceR = nm === 'attack' ? Math.cos(P.sa) > 0 : nm === 'dash' ? P.dx > 0 : P.vx !== 0 ? P.vx > 0 : Math.cos(P.aim) > 0;
+  }
+  const im = dhFrame(nm + (P.faceR ? '_R' : '_L'), t - P.ts) || DH.frames[0]; if (!im) return;
   let al = 1; if (nm === 'dash') al = 0.65;
   if (nm === 'death') al = Math.max(0, 1 - Math.max(0, t - P.ts - 0.6) * 0.8);
   if (P.inv > 0 && state === 'play' && Math.floor(t * 20) % 2) al *= 0.35;                     // post-hit blink
-  const S = 0.7;
+  const S = 0.8;
   ctx.save(); ctx.globalAlpha = al; ctx.translate(P.x, P.y + 10); ctx.imageSmoothingEnabled = false;
   if (P.burst > 0) { ctx.shadowColor = '#6af'; ctx.shadowBlur = 20; } else if (P.drink > 0) { ctx.shadowColor = '#f93'; ctx.shadowBlur = 18; }
-  if (flip) ctx.scale(-1, 1);
   ctx.drawImage(im, -im.width / 2 * S, -SPR.FEET * S, im.width * S, im.height * S);
   ctx.restore();
   if (P.swing > 0 && state !== 'dead') {
-    const a = P.swing / 0.14;
+    const a = clamp(P.swing / 0.14, 0, 1);
     ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = 'rgba(190,120,255,' + a + ')'; ctx.lineWidth = 10 * a + 2; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.arc(P.x, P.y - 8, 52, P.sa - 1.3, P.sa + 1.3); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,' + a + ')'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(P.x, P.y - 8, 52, P.sa - 1.2, P.sa + 1.2); ctx.stroke(); ctx.restore();

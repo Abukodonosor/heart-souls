@@ -4,7 +4,7 @@
 <script src="../engine/util.js"></script><script src="../engine/spritegen.js"></script><script src="../engine/sprite.js"></script>
 <script>
 // usage: sheet.html?anims=idle,walk&scale=4   (frames built from the original art)
-(async()=>{const q=new URLSearchParams(location.search),S=+(q.get('scale')||4),names=(q.get('anims')||'idle').split(',');
+(async()=>{const q=new URLSearchParams(location.search),S=+(q.get('scale')||4),names=(q.get('anims')||'idle_L').split(',');
 const set=genHeroSet(await dhLoadPortrait('../')),o=document.getElementById('o');
 for(const an of names){o.insertAdjacentHTML('beforeend','<h4>'+an+' ('+set.anims[an].frames.length+' frames @ '+set.anims[an].fps+'fps)</h4>');
 for(const fi of set.anims[an].frames){const c=document.createElement('canvas');c.width=SPR.W;c.height=SPR.H;c.style.width=SPR.W*S+'px';c.style.height=SPR.H*S+'px';c.getContext('2d').drawImage(set.frames[fi],0,0);o.appendChild(c)}}})();
