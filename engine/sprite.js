@@ -2,8 +2,10 @@
 // Hero art loader. A native frame is 36x52 (feet on row 48). Frames come from, in priority order:
 //   1. assets/darkheart.json  (saved by editor.html)    2. genHeroSet() in spritegen.js  (procedural defaults, 5 dirs + mirrors)
 // DH.portrait is the original hero.png converted to real pixels (title screen, the Mirror boss).
-const SPR = { W: 48, H: 76, FEET: 72 };
-const PORT = { W: 40, H: 72, PX: 15, ox: 315, oy: 105 };       // geometry of the source art: 15px blocks
+const SPR = { W: 60, H: 94, FEET: 91 };      // frame canvas: the 48x87 drawing + padding for moving parts (see GEN in spritegen.js)
+// hero.png is a clean 100x100 pixel-art grid, every art pixel = 12x12 image pixels (measured: 10000/10000 blocks uniform).
+// The character fills cols 26..73, rows 9..95 of that grid = 48x87 art pixels, 2199 opaque, 13 colours. tools/validate.html re-checks all of this.
+const PORT = { PX: 12, ox: 26, oy: 9, W: 48, H: 87 };
 const DH = { frames: [], anims: {}, portrait: null, ready: false };
 const dhCanvas = () => { const c = document.createElement('canvas'); c.width = SPR.W; c.height = SPR.H; return c; };
 
@@ -14,14 +16,12 @@ function dhLoadPortrait(prefix) {
       const s = document.createElement('canvas'); s.width = im.width; s.height = im.height;
       const sx = s.getContext('2d'); sx.drawImage(im, 0, 0);
       const src = sx.getImageData(0, 0, im.width, im.height).data;
-      const { W, H, PX, ox, oy } = PORT, px = new Uint8ClampedArray(W * H * 4), bg = new Uint8Array(W * H);
-      const get = (i, j) => { const k = ((oy + j * PX + 7) * im.width + (ox + i * PX + 7)) * 4; return [src[k], src[k + 1], src[k + 2], src[k + 3]]; };
-      const white = (i, j) => { const p = get(i, j); return p[3] < 128 || (p[0] > 235 && p[1] > 235 && p[2] > 235); };
-      const st = [];                                            // flood-fill the white background from the border only,
-      for (let i = 0; i < W; i++) st.push([i, 0], [i, H - 1]);   // so the white glove and mask slit survive
-      for (let j = 0; j < H; j++) st.push([0, j], [W - 1, j]);
-      while (st.length) { const [i, j] = st.pop(); if (i < 0 || j < 0 || i >= W || j >= H || bg[j * W + i] || !white(i, j)) continue; bg[j * W + i] = 1; st.push([i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]); }
-      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) { const p = get(i, j), k = (j * W + i) * 4; px[k] = p[0]; px[k + 1] = p[1]; px[k + 2] = p[2]; px[k + 3] = bg[j * W + i] ? 0 : 255; }
+      const { W, H, PX, ox, oy } = PORT, px = new Uint8ClampedArray(W * H * 4);
+      // The PNG's background is truly transparent. White pixels are real art (the glove, the mask slit), so only alpha decides.
+      for (let j = 0; j < H; j++) for (let i = 0; i < W; i++) {
+        const k = (((oy + j) * PX + PX / 2) * im.width + ((ox + i) * PX + PX / 2)) * 4, o = (j * W + i) * 4;
+        if (src[k + 3] >= 128) { px[o] = src[k]; px[o + 1] = src[k + 1]; px[o + 2] = src[k + 2]; px[o + 3] = 255; }
+      }
       const o = document.createElement('canvas'); o.width = W; o.height = H; o.getContext('2d').putImageData(new ImageData(px, W, H), 0, 0); res(o);
     };
     im.src = prefix + 'hero.png';

@@ -1,42 +1,60 @@
 <!doctype html><html><head><meta charset="utf-8"><title>Sprite validation</title>
-<style>body{margin:12px;background:#14091c;color:#ddd;font:13px monospace}canvas{image-rendering:pixelated;border:1px solid #444;margin:4px;background:#2a2a33}.p{color:#6e6}.f{color:#f55}h4{color:#c6f}</style></head>
+<style>body{margin:12px;background:#14091c;color:#ddd;font:13px monospace}canvas{image-rendering:pixelated;border:1px solid #444;margin:4px;background:#2a2a33}h4{color:#c6f}</style></head>
 <body><h3>Darkheart sprite validation (feedback loop)</h3><pre id="o"></pre><div id="v"></div>
-<script src="../engine/util.js"></script><script src="../engine/spritegen.js"></script><script src="../engine/sprite.js"></script>
+<script src="../engine/util.js"></script><script src="../engine/sprite.js"></script><script src="../engine/spritegen.js"></script>
 <script>
 (async()=>{
  const o=document.getElementById('o');let fails=0,log='';const ok=(c,m)=>{log+=(c?'PASS ':'FAIL ')+m+'\n';if(!c)fails++};
- const port=await dhLoadPortrait('../');const set=genHeroSet(port);
+ // ---- independent read of the PNG (does not use the engine's loader)
+ const raw=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src='../hero.png'});
+ const rc=document.createElement('canvas');rc.width=raw.width;rc.height=raw.height;const rx=rc.getContext('2d');rx.drawImage(raw,0,0);
+ const RD=rx.getImageData(0,0,raw.width,raw.height).data,PX=PORT.PX,N=raw.width/PX;
+ let nonUniform=0,minC=999,maxC=0,minR=999,maxR=0,rawOpaque=0,rawWhite=0;const rawColors=new Set();
+ for(let r=0;r<N;r++)for(let q=0;q<N;q++){const k=((r*PX+6)*raw.width+q*PX+6)*4;
+  for(const [dx,dy] of [[1,1],[10,1],[1,10],[10,10]]){const k2=((r*PX+dy)*raw.width+q*PX+dx)*4;for(let t=0;t<4;t++)if(RD[k+t]!==RD[k2+t]){nonUniform++;break}}
+  if(RD[k+3]>=128){rawOpaque++;minC=Math.min(minC,q);maxC=Math.max(maxC,q);minR=Math.min(minR,r);maxR=Math.max(maxR,r);rawColors.add(RD[k]+','+RD[k+1]+','+RD[k+2]);if(RD[k]>235&&RD[k+1]>235&&RD[k+2]>235)rawWhite++}}
+ ok(raw.width%PX===0&&raw.width===raw.height,'image is a square multiple of the art pixel ('+raw.width+'px = '+N+'x'+N+' art pixels of '+PX+'px)');
+ ok(nonUniform===0,'every art pixel is a uniform '+PX+'x'+PX+' block ('+nonUniform+' blocks are not)');
+ ok(minC===PORT.ox&&minR===PORT.oy&&maxC-minC+1===PORT.W&&maxR-minR+1===PORT.H,'character bounding box matches PORT: cols '+minC+'..'+maxC+', rows '+minR+'..'+maxR+' = '+(maxC-minC+1)+'x'+(maxR-minR+1));
+ // ---- engine output
+ const port=await dhLoadPortrait('../'),set=genHeroSet(port);
  const px=c=>c.getContext('2d').getImageData(0,0,c.width,c.height).data;
  const P=px(port),F0=px(set.frames[set.anims.idle.frames[0]]);
- // 1. idle frame 0 must equal the source drawing 1:1
- let diff=0,opaque=0;
- for(let y=0;y<GEN.srcH;y++)for(let x=0;x<GEN.srcW;x++){const a=(y*GEN.srcW+x)*4,b=((y+GEN.padY)*SPR.W+x+GEN.padX)*4;
-  if(P[a+3])opaque++;for(let k=0;k<4;k++)if(P[a+k]!==F0[b+k]){diff++;break}}
- ok(diff===0,'idle frame 0 is pixel-identical to hero.png ('+diff+' differing pixels of '+GEN.srcW*GEN.srcH+', '+opaque+' opaque)');
- // 2. palette: no frame may contain a colour that is not in the source
- const pal=new Set();for(let i=0;i<P.length;i+=4)if(P[i+3])pal.add(P[i]+','+P[i+1]+','+P[i+2]);
+ let opaque=0,white=0;const palette=new Set();
+ for(let i=0;i<P.length;i+=4)if(P[i+3]){opaque++;palette.add(P[i]+','+P[i+1]+','+P[i+2]);if(P[i]>235&&P[i+1]>235&&P[i+2]>235)white++}
+ ok(opaque===rawOpaque,'portrait keeps every opaque pixel of the drawing ('+opaque+' vs '+rawOpaque+' read independently)');
+ ok(white===rawWhite&&white>20,'white art survives: glove, mask slit ('+white+' white pixels vs '+rawWhite+')');
+ ok(palette.size===rawColors.size,'palette identical: '+palette.size+' colours vs '+rawColors.size);
+ let mism=0;for(let j=0;j<PORT.H;j++)for(let i=0;i<PORT.W;i++){const a=(j*PORT.W+i)*4,k=(((PORT.oy+j)*PX+6)*raw.width+(PORT.ox+i)*PX+6)*4;for(let t=0;t<3;t++)if(P[a+3]&&P[a+t]!==RD[k+t]){mism++;break}if(!!P[a+3]!==(RD[k+3]>=128))mism++}
+ ok(mism===0,'portrait equals the PNG pixel for pixel ('+mism+' differences)');
+ // ---- idle frame 0 == the drawing
+ let diff=0;for(let y=0;y<GEN.srcH;y++)for(let x=0;x<GEN.srcW;x++){const a=(y*GEN.srcW+x)*4,b=((y+GEN.padY)*SPR.W+x+GEN.padX)*4;for(let k=0;k<4;k++)if(P[a+k]!==F0[b+k]){diff++;break}}
+ ok(diff===0,'idle frame 0 is pixel-identical to the drawing ('+diff+' differing pixels)');
+ ok(SPR.H-GEN.padY-GEN.srcH>=0&&SPR.FEET===GEN.padY+GEN.srcH,'feet row = bottom of the drawing (FEET='+SPR.FEET+')');
+ // ---- every animation frame
  let bad=0,minPx=1e9,maxPx=0,clipped=0,n=0;
- for(const an in set.anims)for(const fi of set.anims[an].frames){n++;const cnt0=an==='death'?-1:0;const d=px(set.frames[fi]);let cnt=0;
-  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;cnt++;if(!pal.has(d[i]+','+d[i+1]+','+d[i+2]))bad++}
+ for(const an in set.anims)for(const fi of set.anims[an].frames){n++;const d=px(set.frames[fi]);let cnt=0;
+  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;cnt++;if(!palette.has(d[i]+','+d[i+1]+','+d[i+2]))bad++}
   for(let x=0;x<SPR.W;x++)for(const y of[0,SPR.H-1])if(d[(y*SPR.W+x)*4+3])clipped++;
   for(let y=0;y<SPR.H;y++)for(const x of[0,SPR.W-1])if(d[(y*SPR.W+x)*4+3])clipped++;
   if(an!=='death'){minPx=Math.min(minPx,cnt);maxPx=Math.max(maxPx,cnt)}}
- ok(bad===0,'all '+n+' frames use only colours from the original ('+bad+' foreign pixels)');
+ ok(bad===0,'all '+n+' frames use only colours from the drawing ('+bad+' foreign pixels)');
  ok(clipped===0,'no frame touches the canvas edge ('+clipped+' edge pixels)');
- ok(minPx>opaque*0.85&&maxPx<opaque*1.15,'pixel count stays within 15% of the original, death excluded ('+minPx+'..'+maxPx+' vs '+opaque+')');
- // 3. every animation actually moves
+ ok(minPx>opaque*0.9&&maxPx<opaque*1.1,'pixel count stays within 10% of the drawing, death excluded ('+minPx+'..'+maxPx+' vs '+opaque+')');
  for(const an in set.anims){const a=set.anims[an];const d0=px(set.frames[a.frames[0]]);let moved=false;
   for(const fi of a.frames.slice(1)){const d=px(set.frames[fi]);for(let i=0;i<d.length;i++)if(d[i]!==d0[i]){moved=true;break}if(moved)break}
   ok(moved,an+' animation changes between frames')}
+ // loops must close: last frame -> first frame is a small step, like every other step
+ const dist=(a,b)=>{let c=0;for(let i=3;i<a.length;i+=4)if(a[i]!==b[i]||(a[i]&&(a[i-3]!==b[i-3]||a[i-2]!==b[i-2]||a[i-1]!==b[i-1])))c++;return c};
+ for(const an of ['idle','walk']){const f=set.anims[an].frames.map(i=>px(set.frames[i])),steps=f.map((d,i)=>dist(d,f[(i+1)%f.length])),wrap=steps[steps.length-1];
+  ok(wrap<=Math.max(...steps.slice(0,-1))*1.5+10,an+' loop closes smoothly (wrap step '+wrap+' px vs inner steps '+Math.min(...steps.slice(0,-1))+'..'+Math.max(...steps.slice(0,-1))+')')}
  log+='\n'+(fails?'FAILED '+fails:'ALL PASSED');o.textContent=log;document.title=fails?'FAIL':'PASS';
- // visual: original | idle frame 0 | red = differing pixels
- const S=6,v=document.getElementById('v');v.insertAdjacentHTML('beforeend','<h4>original | idle[0] | diff (red)</h4>');
+ const S=5,v=document.getElementById('v');v.insertAdjacentHTML('beforeend','<h4>drawing | idle[0] | diff (red = differs)</h4>');
  const mk=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;c.style.width=w*S+'px';c.style.height=h*S+'px';v.appendChild(c);return c};
- mk(GEN.srcW,GEN.srcH).getContext('2d').drawImage(port,0,0);
- mk(SPR.W,SPR.H).getContext('2d').drawImage(set.frames[set.anims.idle.frames[0]],0,0);
- const dc=mk(GEN.srcW,GEN.srcH).getContext('2d'),dd=dc.createImageData(GEN.srcW,GEN.srcH);
- for(let y=0;y<GEN.srcH;y++)for(let x=0;x<GEN.srcW;x++){const a=(y*GEN.srcW+x)*4,b=((y+GEN.padY)*SPR.W+x+GEN.padX)*4;let d=false;for(let k=0;k<4;k++)if(P[a+k]!==F0[b+k])d=true;
-  dd.data[a]=d?255:60;dd.data[a+1]=d?0:60;dd.data[a+2]=d?0:60;dd.data[a+3]=P[a+3]||d?255:0}
+ mk(PORT.W,PORT.H).getContext('2d').drawImage(port,0,0);mk(SPR.W,SPR.H).getContext('2d').drawImage(set.frames[set.anims.idle.frames[0]],0,0);
+ const dc=mk(PORT.W,PORT.H).getContext('2d'),dd=dc.createImageData(PORT.W,PORT.H);
+ for(let y=0;y<PORT.H;y++)for(let x=0;x<PORT.W;x++){const a=(y*PORT.W+x)*4,b=((y+GEN.padY)*SPR.W+x+GEN.padX)*4;let d=false;for(let k=0;k<4;k++)if(P[a+k]!==F0[b+k])d=true;
+  dd.data[a]=d?255:70;dd.data[a+1]=d?0:70;dd.data[a+2]=d?0:70;dd.data[a+3]=P[a+3]||d?255:0}
  dc.putImageData(dd,0,0);window.__done=true;
 })();
 </script></body></html>

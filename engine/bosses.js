@@ -66,7 +66,7 @@ function mirrorSprite() {                                   // the hero's own sp
   return (mirrorCv = c);
 }
 function drawMirror(g, k) {
-  const im = mirrorSprite(), S = 1.15; g.save();
+  const im = mirrorSprite(), S = 0.95; g.save();
   g.strokeStyle = k ? '#fff' : 'rgba(220,235,255,.35)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, B.r, 0, TAU); g.stroke();
   if (im) {
     g.imageSmoothingEnabled = false; if (Math.cos(B.face) > 0) g.scale(-1, 1);

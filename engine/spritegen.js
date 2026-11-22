@@ -3,9 +3,10 @@
 // whole pixel rows of the 40x72 source, so idle frame 0 is pixel-identical to the drawing and every later frame is
 // still "the same drawing", just moving. tools/validate.html checks that automatically.
 // The source art looks LEFT; the engine mirrors it when the hero aims right.
-const GEN = { padX: 4, padY: 2, srcW: 40, srcH: 72 };
+// srcW/srcH are read lazily from PORT (sprite.js) so script load order does not matter.
+const GEN = { padX: 6, padY: 4, get srcW() { return PORT.W; }, get srcH() { return PORT.H; } };
 
-// dx(r) / dy(r): offset in pixels for source row r. Rows: 0-15 hood, 16-40 torso/arms, 40-59 coat tails + legs, 60-71 boots.
+// dx(r) / dy(r): offset in art pixels for source row r (see ROW below for what each band of rows contains).
 function heroRows(portrait, dx, dy) {
   const { padX, padY, srcW, srcH } = GEN, W = SPR.W, H = SPR.H;
   const src = portrait.getContext('2d').getImageData(0, 0, srcW, srcH).data;
@@ -25,17 +26,19 @@ function heroRows(portrait, dx, dy) {
   c.getContext('2d').putImageData(new ImageData(out, W, H), 0, 0);
   return c;
 }
-// cloak tails ripple: a travelling wave that grows toward the hem; boots (row 60+) stay planted
+// Anatomy of the drawing, in art-pixel rows (measured with tools/grid.html on the 48x87 character):
+const ROW = { head: 21, tail0: 47, boots: 74 };   // hood+mask 0-21, torso 22-46, coat tails + legs 47-73, leg wrap + boots 74-86
+// cloak tails ripple: a travelling wave that grows toward the hem; boots stay planted.
 // (the wave is measured relative to phase 0, so frame 0 of every loop is the untouched drawing)
-const tail = (r, p, A) => { if (r < 40 || r >= 60) return 0; const ph = (r - 40) * 0.25; return Math.round(A * (Math.sin(p * TAU - ph) + Math.sin(ph)) * Math.min(1, (r - 40) / 8)); };
-const lean = (r, k) => -Math.round((60 - Math.min(r, 60)) / 60 * k);     // forward = left in source space; upper body leans most
+const tail = (r, p, A) => { if (r < ROW.tail0 || r >= ROW.boots) return 0; const ph = (r - ROW.tail0) * 0.22; return Math.round(A * (Math.sin(p * TAU - ph) + Math.sin(ph)) * Math.min(1, (r - ROW.tail0) / 9)); };
+const lean = (r, k) => -Math.round((ROW.boots - Math.min(r, ROW.boots)) / ROW.boots * k);   // forward = left in source space; the head leans most
 
 const HANIMS = {
-  idle:   { n: 8, fps: 8,  loop: true,  f: i => { const p = i / 8, up = Math.sin(p * TAU) > 0.4; return { dy: r => (up && r <= 15) ? -1 : 0, dx: r => tail(r, p, 1.4) }; } },
-  walk:   { n: 6, fps: 12, loop: true,  f: i => { const p = i / 6; return { dy: r => (r < 60 && (i === 1 || i === 4)) ? -1 : 0, dx: r => tail(r, p, 2.2) + lean(r, 2) + (r >= 60 ? [-1, 0, 1, 1, 0, -1][i] : 0) }; } },
-  dash:   { n: 3, fps: 18, loop: false, f: i => ({ dy: () => 0, dx: r => lean(r, 3 + i * 1.5) + (r >= 40 && r < 60 ? 2 + i : 0) }) },
-  attack: { n: 5, fps: 24, loop: false, f: i => ({ dy: () => 0, dx: r => lean(r, [0, 1.5, 4, 4, 1.5][i]) + tail(r, i / 5, 1) }) },
-  death:  { n: 6, fps: 8,  loop: false, f: i => { const k = i / 5; return { dy: r => r < 60 ? Math.round(k * 0.5 * (60 - r)) : 0, dx: r => lean(r, k * 10) }; } },
+  idle:   { n: 8, fps: 8,  loop: true,  f: i => { const p = i / 8, up = Math.sin(p * TAU) > 0.4; return { dy: r => (up && r <= ROW.head) ? -1 : 0, dx: r => tail(r, p, 1.5) }; } },
+  walk:   { n: 6, fps: 12, loop: true,  f: i => { const p = i / 6; return { dy: r => (r < ROW.boots && (i === 1 || i === 4)) ? -1 : 0, dx: r => tail(r, p, 2.4) + lean(r, 2.4) + (r >= ROW.boots ? [-1, 0, 1, 1, 0, -1][i] : 0) }; } },
+  dash:   { n: 3, fps: 18, loop: false, f: i => ({ dy: () => 0, dx: r => lean(r, 3.6 + i * 1.8) + (r >= ROW.tail0 && r < ROW.boots ? 2 + i : 0) }) },
+  attack: { n: 5, fps: 24, loop: false, f: i => ({ dy: () => 0, dx: r => lean(r, [0, 1.8, 4.8, 4.8, 1.8][i]) + tail(r, i / 5, 1) }) },
+  death:  { n: 6, fps: 8,  loop: false, f: i => { const k = i / 5; return { dy: r => r < ROW.boots ? Math.round(k * 0.5 * (ROW.boots - r)) : 0, dx: r => lean(r, k * 12) }; } },
 };
 function genHeroSet(portrait = DH.portrait) {
   const frames = [], anims = {};

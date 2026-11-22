@@ -1,0 +1,12 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Source grid</title>
+<style>body{margin:8px;background:#1a1024;color:#ccc;font:11px monospace}</style></head>
+<body><p>hero.png as native pixels (48 x 87) with row/column numbers. Used to pick animation regions.</p><canvas id="c"></canvas>
+<script src="../engine/util.js"></script><script src="../engine/spritegen.js"></script><script src="../engine/sprite.js"></script>
+<script>
+(async()=>{const p=await dhLoadPortrait('../'),Z=9,L=26,c=document.getElementById('c');c.width=GEN.srcW*Z+L;c.height=GEN.srcH*Z+L;const g=c.getContext('2d');
+g.fillStyle='#2a2a33';g.fillRect(L,L,GEN.srcW*Z,GEN.srcH*Z);g.imageSmoothingEnabled=false;g.drawImage(p,L,L,GEN.srcW*Z,GEN.srcH*Z);
+g.font='10px monospace';g.fillStyle='#ccc';g.strokeStyle='rgba(255,255,255,.12)';
+for(let x=0;x<=GEN.srcW;x++){g.beginPath();g.moveTo(L+x*Z,L);g.lineTo(L+x*Z,L+GEN.srcH*Z);if(x%5==0){g.strokeStyle='rgba(255,255,0,.5)';g.fillText(x,L+x*Z-4,12)}g.stroke();g.strokeStyle='rgba(255,255,255,.12)'}
+for(let y=0;y<=GEN.srcH;y++){g.beginPath();g.moveTo(L,L+y*Z);g.lineTo(L+GEN.srcW*Z,L+y*Z);if(y%5==0){g.strokeStyle='rgba(255,255,0,.5)';g.fillText(y,2,L+y*Z+4)}g.stroke();g.strokeStyle='rgba(255,255,255,.12)'}
+})();
+</script></body></html>
