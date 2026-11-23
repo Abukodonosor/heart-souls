@@ -17,9 +17,11 @@ WASD move - Space/Shift dash (i-frames) - LMB/J Abyssal Blade - RMB/K throw / re
 Tab or 1-4 switch bolt - Q burst - F flask (souls mode) - Esc pause - M mute
 
 ## Map and camera
-The map is 1140 x 688 (12 x 8 floor tiles). The camera is exactly 1:1 (crisp pixel art) while you are near the boss and pulls back smoothly as you move away,
-until the whole map is visible; it always keeps both hero and boss in frame and never shows past the map edge. Every fight opens on the whole map.
-Aim and the mouse work in world coordinates, so they stay correct at any zoom. Constants: `ZMIN`, `CFG.A` (world), `CFG.VIEW` (screen window) in `engine/core.js`.
+The map is 1440 x 860 (15 x 10 floor tiles) and fills the whole window: the canvas follows the window shape (height 540, width 4:3 .. 21:9) and the HUD
+and menus are drawn over the map in a centred 960px safe area. Menus use the real floor of the (selected) boss as a slowly drifting background.
+The camera is exactly 1:1 (crisp pixel art) while you are near the boss and pulls back smoothly as you move away, until the whole map is visible;
+it always keeps both hero and boss in frame and never shows past the map edge. Every fight opens on the whole map. Aim and the mouse work in world
+coordinates, so they stay correct at any zoom. Constants: `CFG.A` (world), `CFG.VIEW`, `ZMIN`, `fitCanvas()` in `engine/core.js`.
 
 ## The hero art (important)
 `hero.png` is the source of truth: a clean 100x100 pixel grid, each art pixel = 12x12 image pixels; the character is 48x87 art pixels, 13 colours.

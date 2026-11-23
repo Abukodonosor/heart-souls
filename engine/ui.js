@@ -5,6 +5,7 @@ const UI = { mi: 0, rects: [], mx: 480, my: 270 };   // start equal to the defau
 function toTitle() { state = 'title'; UI.mi = 0; AUD.stopMusic(); FX.clear(); }
 function cycleMode() { SAVE.d.mode = SAVE.d.mode === 'abyss' ? 'souls' : 'abyss'; SAVE.flush(); AUD.sfx('ui'); }
 function addVol(d) { AUD.setVolume(Math.round((AUD.getVolume() + d * 0.1) * 10) / 10); SAVE.d.vol = AUD.getVolume(); SAVE.flush(); AUD.sfx('ui'); }
+const fmtTime = v => Number.isFinite(v) ? v.toFixed(1) + 's' : '--';       // a cleared boss may have no recorded time (old or edited save)
 const volItem = () => ({ text: () => 'VOLUME  < ' + Math.round(AUD.getVolume() * 100) + '% >', adj: addVol });
 
 function menuItems() {
@@ -15,7 +16,7 @@ function menuItems() {
     volItem(),
   ];
   if (state === 'select') return BOSS_INFO.map((b, i) => ({
-    text: () => (i + 1) + '  ' + (SAVE.canPlay(i) ? b.name.padEnd(22) + (SAVE.isCleared(i) ? 'FELLED ' + SAVE.d.best[i].toFixed(1) + 's' : '') : '???'.padEnd(22) + 'LOCKED'),
+    text: () => (i + 1) + '  ' + (SAVE.canPlay(i) ? b.name.padEnd(22) + (SAVE.isCleared(i) ? 'FELLED ' + fmtTime(SAVE.d.best[i]) : '') : '???'.padEnd(22) + 'LOCKED'),
     sub: () => SAVE.canPlay(i) ? b.epithet + '   deaths: ' + (SAVE.d.deaths[i] || 0) : 'Defeat the previous boss.',
     disabled: () => !SAVE.canPlay(i),
     act: () => { if (SAVE.canPlay(i)) { AUD.sfx('ok'); begin(i); } },
@@ -33,11 +34,11 @@ function menuItems() {
 function uiUpdate() {
   if (pressed('KeyM')) AUD.toggleMute();
   if ((state === 'play' || state === 'intro') && pressed('Escape', 'KeyP')) pause();
-  const items = menuItems();
+  const items = menuItems(), mx = mouse.x - ox();                 // menus live in the centred safe area
   const moved = mouse.x !== UI.mx || mouse.y !== UI.my; UI.mx = mouse.x; UI.my = mouse.y;
   let click = -1;
   UI.rects.forEach((r, i) => {
-    if (mouse.x >= r.x && mouse.x <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h) {
+    if (mx >= r.x && mx <= r.x + r.w && mouse.y >= r.y && mouse.y <= r.y + r.h) {
       if (moved && UI.mi !== i) { UI.mi = i; AUD.sfx('ui'); }
       if (mouse.jl) click = i;
     }

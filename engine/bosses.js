@@ -11,14 +11,14 @@ const THEMES = {
   void:   { floor: '#0a0a12', line: 'rgba(255,220,120,.10)', accent: '#c9a227', glow: '#fd6', seed: 43 },
 };
 const BOSS_INFO = [
-  { name: 'THE WARDEN', epithet: 'Keeper of the first gate' },
-  { name: 'THE WRAITH', epithet: 'What remains of a grieving thing' },
-  { name: 'THE HEART EATER', epithet: 'It remembers every beat it stole' },
-  { name: 'THE FACELESS MIRROR', epithet: 'It shows you what you are missing' },
-  { name: 'THE HOLLOW KING', epithet: 'Wears the crown of an empty head' },
+  { name: 'THE WARDEN', epithet: 'Keeper of the first gate', theme: THEMES.violet },
+  { name: 'THE WRAITH', epithet: 'What remains of a grieving thing', theme: THEMES.teal },
+  { name: 'THE HEART EATER', epithet: 'It remembers every beat it stole', theme: THEMES.blood },
+  { name: 'THE FACELESS MIRROR', epithet: 'It shows you what you are missing', theme: THEMES.glass },
+  { name: 'THE HOLLOW KING', epithet: 'Wears the crown of an empty head', theme: THEMES.void },
 ];
 const cx = A.x + A.w / 2, cy = A.y + A.h / 2;
-const CELL = { w: 95, h: 86 }, COLS = Math.round(A.w / CELL.w), ROWS = Math.round(A.h / CELL.h);   // the floor tile grid (12 x 8) that grid attacks follow
+const CELL = CFG.CELL, COLS = Math.round(A.w / CELL.w), ROWS = Math.round(A.h / CELL.h);   // the floor tile grid (15 x 10) that grid attacks follow
 const ex = T => T * (0.6 + 0.4 * (B ? B.k : 1));           // exposure windows shrink in later phases
 const randIn = (m = 40) => [rr(A.x + m, A.x + A.w - m), rr(A.y + m, A.y + A.h - m)];
 
@@ -108,7 +108,7 @@ const BOSSES = [
   // 2. THE WRAITH - teaches: bullets, crossing beams, reading a blink
   () => mk({ ...BOSS_INFO[1], r: 30, hp: 13, turn: 2.4, x: cx, y: A.y + 100, theme: THEMES.teal, draw: drawWraith, script: function* () {
     while (true) {
-      { const T = 1.7 * B.k; for (let i = 0; i < 8 + B.phase * 3; i++) { const [x, y] = randIn(); zc(x, y, 58, 1 + i * 0.09); } yield* cast('DARK RAIN', T); }
+      { const n = 16 + B.phase * 6, T = (1 + n * 0.09) * B.k; for (let i = 0; i < n; i++) { const [x, y] = randIn(); zc(x, y, 58, 1 + i * 0.09); } yield* cast('DARK RAIN', T); }
       { const T = 1 * B.k; zb(A.x, P.y, 0, 34, T, 0.3, A.w); zb(P.x, A.y, PI / 2, 34, T, 0.3, A.h);
         if (B.phase) { zb(A.x, P.y + 100, 0, 34, T + 0.25, 0.3, A.w); zb(P.x - 110, A.y, PI / 2, 34, T + 0.25, 0.3, A.h); } yield* cast('SCYTHE', T); }
       for (let n = 0; n < 1 + B.phase; n++) {

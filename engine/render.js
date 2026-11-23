@@ -2,6 +2,7 @@
 // DARKHEART rendering. Reads game state and draws it; the only thing it writes is UI.rects (menu hit boxes).
 
 let floorCv = null, vigCv = null;
+const UIW = CFG.UIW, ox = () => (CFG.W - UIW) / 2;     // x offset of the centred HUD / menu safe area
 
 // Pre-rendered glow sprites: one drawImage per bullet / for the hero's light, instead of shadowBlur or a gradient built every frame.
 function radialSprite(size, stops) {
@@ -11,19 +12,31 @@ function radialSprite(size, stops) {
   g.fillStyle = r; g.fillRect(0, 0, size, size);
   return c;
 }
+// Soft dark bands under the HUD so text stays readable over the full-screen map (pre-rendered once).
+function scrim(h, fromTop) {
+  const c = document.createElement('canvas'); c.width = CFG.W; c.height = h;
+  const g = c.getContext('2d'), r = g.createLinearGradient(0, 0, 0, h);
+  r.addColorStop(fromTop ? 0 : 1, 'rgba(0,0,0,.62)'); r.addColorStop(fromTop ? 1 : 0, 'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0, 0, CFG.W, h); return c;
+}
+let scrimW = 0, scrimTop = null, scrimBottom = null;
+function scrims() { if (scrimW !== CFG.W) { scrimW = CFG.W; scrimTop = scrim(120, true); scrimBottom = scrim(70, false); } return [scrimTop, scrimBottom]; }
 const GLOW = radialSprite(32, [[0, 'rgba(255,130,90,.85)'], [0.4, 'rgba(255,70,40,.32)'], [1, 'rgba(255,40,20,0)']]);
 const LIGHT = radialSprite(340, [[0, 'rgba(170,90,255,.17)'], [1, 'rgba(0,0,0,0)']]);
 
 // ---------------------------------------------------------------- cached layers
-function buildFloor(th) {
+const floorCache = new Map();
+function floorFor(th) { if (!floorCache.has(th)) floorCache.set(th, renderFloor(th)); return floorCache.get(th); }
+function buildFloor(th) { floorCv = floorFor(th); }
+function renderFloor(th) {
   const c = document.createElement('canvas'); c.width = A.w; c.height = A.h;
   const g = c.getContext('2d');
   g.fillStyle = th.floor; g.fillRect(0, 0, A.w, A.h);
   let s = th.seed || 7; const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;   // seeded: same floor every run
   for (let i = 0; i < 600; i++) { g.fillStyle = 'rgba(255,255,255,' + (rnd() * 0.035) + ')'; g.fillRect(rnd() * A.w | 0, rnd() * A.h | 0, 2, 2); }
-  g.strokeStyle = th.line; g.lineWidth = 1; g.beginPath();           // 95 x 86 px tiles = 8 x 5 grid (bosses use it)
-  for (let x = 0; x <= A.w; x += 95) { g.moveTo(x, 0); g.lineTo(x, A.h); }
-  for (let y = 0; y <= A.h; y += 86) { g.moveTo(0, y); g.lineTo(A.w, y); }
+  g.strokeStyle = th.line; g.lineWidth = 1; g.beginPath();           // 96 x 86 px tiles = 15 x 10 grid (bosses use it)
+  for (let x = 0; x <= A.w; x += CFG.CELL.w) { g.moveTo(x, 0); g.lineTo(x, A.h); }
+  for (let y = 0; y <= A.h; y += CFG.CELL.h) { g.moveTo(0, y); g.lineTo(A.w, y); }
   g.stroke();
   g.strokeStyle = 'rgba(0,0,0,.4)';
   for (let i = 0; i < 26; i++) {
@@ -36,7 +49,7 @@ function buildFloor(th) {
   for (const r of [150, 100]) { g.beginPath(); g.arc(cx, cy, r, 0, TAU); g.stroke(); }
   g.beginPath(); for (let i = 0; i < 5; i++) { const a = -PI / 2 + i * 2 * TAU / 5; g.lineTo(cx + Math.cos(a) * 150, cy + Math.sin(a) * 150); } g.closePath(); g.stroke();
   g.globalAlpha = 1;
-  floorCv = c;
+  return c;
 }
 function vignette() {
   if (vigCv) return vigCv;
@@ -155,6 +168,7 @@ function drawBolt() {
 
 // ---------------------------------------------------------------- HUD
 function hud() {
+  const [scrimT, scrimB] = scrims(); ctx.drawImage(scrimT, -ox(), 0); ctx.drawImage(scrimB, -ox(), CFG.H - 70);
   text(B.name, 480, 19, 16, '#fff');
   const bx = 280, by = 27, bw = 400;
   bar(bx, by, bw, 10, B.hp / B.max, B.phase > 0 ? '#f80' : '#d22', '#3a0b0b');
@@ -177,7 +191,7 @@ function hud() {
     text(P.drink > 0 ? 'DRINKING...' : 'F: flask', 90, 98, 10, '#a86', 'left', false);
   }
   const lit = i => SAVE.isCleared(i);
-  faceIcon(CFG.W - 54, 8, 40, 48, lit);
+  faceIcon(UIW - 54, 8, 40, 48, lit);
 
   text('MANA', 14, 516, 12, '#8bf', 'left');
   bar(60, 508, 200, 9, P.burst > 0 ? P.burst / CFG.burstT : P.mana / 100, P.burst > 0 || P.mana >= 100 ? '#6cf' : '#38c', '#102030');
@@ -190,7 +204,7 @@ function hud() {
 }
 
 // ---------------------------------------------------------------- overlays
-function letterbox(h) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, CFG.W, h); ctx.fillRect(0, CFG.H - h, CFG.W, h); }
+function letterbox(h) { ctx.fillStyle = '#000'; ctx.fillRect(-ox(), 0, CFG.W, h); ctx.fillRect(-ox(), CFG.H - h, CFG.W, h); }
 function spaced(on) { try { ctx.letterSpacing = on ? '6px' : '0px'; } catch (e) { /* older browsers */ } }
 function overlayIntro() {
   const p = 2.6 - sub, a = Math.min(1, p / 0.5) * Math.min(1, sub / 0.45);
@@ -204,7 +218,7 @@ function overlayIntro() {
 function overlayDead() {
   const a = clamp(sub / 1.1, 0, 1);
   const g = ctx.createRadialGradient(480, 270, 60, 480, 270, 560); g.addColorStop(0, 'rgba(60,0,0,' + a * 0.55 + ')'); g.addColorStop(1, 'rgba(0,0,0,' + a * 0.9 + ')');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, CFG.W, CFG.H);
+  ctx.fillStyle = g; ctx.fillRect(-ox(), 0, CFG.W, CFG.H);
   ctx.globalAlpha = a; spaced(true); text('YOU DIED', 480, 285, 72 + a * 8, '#a01010'); spaced(false); ctx.globalAlpha = 1;
   if (sub > 0.7) { text('ENTER  retry       ESC  menu', 480, 340, 15, '#999', 'center', false); text('deaths: ' + (SAVE.d.deaths[bi] || 0), 480, 362, 12, '#666', 'center', false); }
 }
@@ -236,15 +250,16 @@ function drawMenu(items, x, y, gap, left = false) {      // left: table-style ro
   const cur = items[UI.mi];
   if (cur && cur.sub) text(cur.sub(), x, y + items.length * gap + 8, 13, '#c6f', 'center', false);
 }
-function floorBackdrop() {
-  ctx.drawImage(floorCv, VIEW.x, VIEW.y, VIEW.w, VIEW.h);
-  ctx.strokeStyle = '#7a2a9a'; ctx.lineWidth = 3; ctx.strokeRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+// Menus live on the map: the real floor of the (selected) boss drifts slowly behind them.
+function floorBackdrop(theme, dim) {
+  const f = floorFor(theme), z = 0.8, cx = A.w / 2 + Math.sin(t * 0.12) * 140, cy = A.h / 2 + Math.cos(t * 0.09) * 80;
+  ctx.save(); ctx.translate(CFG.W / 2, CFG.H / 2); ctx.scale(z, z); ctx.translate(-cx, -cy); ctx.drawImage(f, 0, 0); ctx.restore();
   for (const p of FX.parts) { ctx.fillStyle = p.c; ctx.globalAlpha = clamp(p.l / p.m, 0, 1); ctx.fillRect(p.x - 1, p.y - 1, 2, 2); } ctx.globalAlpha = 1;
+  ctx.fillStyle = 'rgba(0,0,0,' + dim + ')'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+  ctx.drawImage(vignette(), 0, 0);
 }
-function drawTitle() {
-  ctx.fillStyle = '#050308'; ctx.fillRect(0, 0, CFG.W, CFG.H);
-  floorBackdrop();
-  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+function drawTitle() { floorBackdrop(THEMES.violet, 0.3); ctx.save(); ctx.translate(ox(), 0); drawTitleUI(); ctx.restore(); }
+function drawTitleUI() {
   if (Math.random() < 0.3) FX.parts.push({ x: rr(VIEW.x, VIEW.x + VIEW.w), y: VIEW.y + VIEW.h, vx: rr(-6, 6), vy: -rr(20, 60), l: 5, m: 5, size: 2, c: '#a0f', drag: 0 });
   if (DH.ready && DH.portrait) {                               // the hero, large, breathing
     const im = DH.portrait, S = 3, bob = Math.sin(t * 2) * 3;
@@ -259,15 +274,14 @@ function drawTitle() {
   text('TAB switch bolt   Q burst   F flask   ESC pause   M mute', 600, 456, 11, '#777', 'center', false);
   text('hit the glowing weak point on the boss\'s back - only while it is open', 600, 476, 11, '#a86', 'center', false);
 }
-function drawSelect() {
-  ctx.fillStyle = '#050308'; ctx.fillRect(0, 0, CFG.W, CFG.H); floorBackdrop();
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+function drawSelect() { floorBackdrop(BOSS_INFO[Math.min(UI.mi, BOSS_INFO.length - 1)].theme, 0.35); ctx.save(); ctx.translate(ox(), 0); drawSelectUI(); ctx.restore(); }
+function drawSelectUI() {
   text('BOSS SELECT', 480, 130, 30, '#fff');
   drawMenu(menuItems(), 290, 200, 40, true);
-  faceIcon(CFG.W - 120, 90, 60, 72, SAVE.isCleared.bind(SAVE));
+  faceIcon(UIW - 120, 90, 60, 72, SAVE.isCleared.bind(SAVE));
 }
 function overlayWin() {
-  ctx.fillStyle = 'rgba(0,0,0,.82)'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+  ctx.fillStyle = 'rgba(0,0,0,.82)'; ctx.fillRect(-ox(), 0, CFG.W, CFG.H);
   faceIcon(420, 90, 120, 144, () => true);
   spaced(true); text('THE FACE IS WHOLE', 480, 290, 40, '#e8c14a'); spaced(false);
   text('...but whose face is it?', 480, 322, 15, '#aaa', 'center', false);
@@ -275,7 +289,7 @@ function overlayWin() {
   drawMenu(menuItems(), 480, 410, 34);
 }
 function overlayPause() {
-  ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(0, 0, CFG.W, CFG.H);
+  ctx.fillStyle = 'rgba(0,0,0,.7)'; ctx.fillRect(-ox(), 0, CFG.W, CFG.H);
   text('PAUSED', 480, 170, 40, '#fff'); drawMenu(menuItems(), 480, 250, 38);
 }
 
@@ -320,12 +334,15 @@ function draw() {
   if (state === 'title') drawTitle();
   else if (state === 'select') drawSelect();
   else {
-    drawWorld(); hud();
+    drawWorld();
+    ctx.save(); ctx.translate(ox(), 0);                    // HUD, banners and menus live in the centred 960px safe area
+    hud();
     if (state === 'intro') overlayIntro();
     else if (state === 'dead') overlayDead();
     else if (state === 'clear') overlayClear();
     else if (state === 'win') overlayWin();
     else if (state === 'paused') overlayPause();
+    ctx.restore();
   }
   if (FX.flash > 0) { ctx.globalAlpha = clamp(FX.flash, 0, 1) * 0.55; ctx.fillStyle = FX.flashC; ctx.fillRect(0, 0, CFG.W, CFG.H); ctx.globalAlpha = 1; }
 }

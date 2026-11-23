@@ -74,6 +74,25 @@ const test = `
     ok(offMap === 0, 'the camera never shows past the edge of the map when zoomed in'); }
   CAM.x = 500; CAM.y = 300; CAM.z = 0.8; mouse.x = VIEW.x + VIEW.w / 2 + 80; mouse.y = VIEW.y + VIEW.h / 2 - 40; mouseWorld();
   ok(Math.abs(mouse.wx - 600) < 1e-9 && Math.abs(mouse.wy - 250) < 1e-9, 'mouse position converts to world coordinates through the camera (zoom 0.8)');
+  // the canvas follows the window shape so the map fills the whole screen
+  const fit = (w, h) => { window.innerWidth = w; window.innerHeight = h; fitCanvas(); };
+  fit(1920, 891); ok(Math.abs(CFG.W - 540 * 1920 / 891) <= 1 && VIEW.w === CFG.W && cv.width === CFG.W, 'canvas width follows the window shape (1920x891 -> ' + CFG.W + 'x540)');
+  fit(5000, 500); ok(CFG.W === 1260, 'ultra-wide windows are clamped to 21:9'); fit(400, 900); ok(CFG.W === 720, 'tall windows are clamped to 4:3');
+  fit(1920, 891);
+  { let bad = 0;
+    for (let i = 0; i < 100; i++) {
+      P.x = rr(A.x + 10, A.x + A.w - 10); P.y = rr(A.y + 10, A.y + A.h - 10); B.x = rr(A.x + 60, A.x + A.w - 60); B.y = rr(A.y + 60, A.y + A.h - 60); settle();
+      const hw = VIEW.w / 2 / CAM.z, hh = VIEW.h / 2 / CAM.z; if (Math.abs(P.x - CAM.x) > hw || Math.abs(P.y - CAM.y) > hh || Math.abs(B.x - CAM.x) > hw || Math.abs(B.y - CAM.y) > hh) bad++;
+    }
+    ok(bad === 0, 'on a wide window hero and boss stay in frame too (' + bad + ' violations)'); }
+  P.x = A.x + 20; P.y = A.y + A.h - 20; B.x = A.x + A.w - 20; B.y = A.y + 20; settle();
+  ok(VIEW.w / 2 / CAM.z * 2 >= A.w - 1 && VIEW.h / 2 / CAM.z * 2 >= A.h - 1, 'at maximum distance the whole map is visible on a wide window (zoom ' + CAM.z.toFixed(3) + ')');
+  draw(); ok(true, 'drawing works at the wide canvas size');
+  fit(960, 540); ok(CFG.W === 960, 'back to 16:9');
+  // a save that lists cleared bosses but has no times must not break the menus
+  { const keep = JSON.stringify(SAVE.d); SAVE.d.cleared = [0, 1]; SAVE.d.best = {}; const st = state; state = 'select';
+    let threw = false; try { menuItems().forEach(it => it.text()); draw(); } catch (e) { threw = true; }
+    ok(!threw, 'boss select works for cleared bosses without recorded times'); state = st; Object.assign(SAVE.d, JSON.parse(keep)); }
   // corrupt / hand-edited save data must be sanitised, never trusted
   ok(JSON.stringify(SAVE.clean({ cleared: 'x', mode: 'evil', vol: 9, best: { a: 1, '2': -5, '1': 12.5 }, deaths: { '0': 3 }, totalDeaths: -1 })) === JSON.stringify({ cleared: [], best: { '1': 12.5 }, deaths: { '0': 3 }, mode: 'abyss', vol: 1, totalDeaths: 0 }), 'corrupt save data is sanitised');
   ok(SAVE.clean(null).mode === 'abyss' && SAVE.clean('junk').cleared.length === 0 && SAVE.clean({ cleared: [2, 2, 0, -1, 1.5, 'z'] }).cleared.join() === '0,2', 'save: junk input and duplicate/invalid clears are handled');

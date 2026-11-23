@@ -3,7 +3,7 @@
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden}
 body{display:flex;justify-content:center;align-items:center;cursor:crosshair}
-canvas{image-rendering:pixelated;width:min(100vw,calc(100vh*16/9));height:auto;aspect-ratio:16/9}
+canvas{image-rendering:pixelated;display:block;width:100vw;height:100vh;object-fit:contain}   /* the canvas itself matches the window shape (fitCanvas) */
 </style></head>
 <body><canvas id="c" width="960" height="540"></canvas>
 <script src="engine/util.js"></script>

@@ -3,6 +3,7 @@
 dhInit();
 AUD.setVolume(SAVE.d.vol);
 buildFloor(THEMES.violet);
+fitCanvas(); addEventListener('resize', fitCanvas);
 let lastT = performance.now();
 (function loop(now) {
   requestAnimationFrame(loop);

@@ -3,9 +3,11 @@
 // Drawing lives in render.js, menus in ui.js, boss scripts in bosses.js.
 
 const CFG = {
-  W: 960, H: 540,
-  A: { x: 0, y: 0, w: 1140, h: 688 },          // the WORLD: 12 x 8 tiles of 95 x 86, 1.5x the old arena
-  VIEW: { x: 100, y: 70, w: 760, h: 430 },     // the window on screen that shows the world through the camera
+  W: 960, H: 540,                              // canvas size: H is fixed, W follows the window shape (fitCanvas)
+  UIW: 960,                                    // design width of the HUD / menu safe area (centred when the canvas is wider)
+  A: { x: 0, y: 0, w: 1440, h: 860 },          // the WORLD: 15 x 10 tiles of 96 x 86, 1.5x the screen in each direction
+  VIEW: { x: 0, y: 0, w: 960, h: 540 },        // the camera window = the whole screen (HUD and menus are drawn over the map)
+  CELL: { w: 96, h: 86 },                      // floor tile; grid attacks follow it
 
   speed: 215, dash: 640, dashT: 0.17, dashCd: 0.6, burstT: 6,
   stam: { max: 100, regen: 48, delay: 0.55, dash: 28, swing: 14 },
@@ -84,15 +86,25 @@ function phaseOf() {
 // ---------------------------------------------------------------- camera
 // Close to the boss the view is exactly 1:1 (crisp pixel art). The further apart hero and boss are, the further the camera
 // pulls back, until the whole map is visible (ZMIN). It always keeps both in frame and never shows past the map edge.
-const ZMIN = 0.625;                            // 760/0.625 x 430/0.625 = more than the 1140 x 688 map
+let ZMIN = Math.min(CFG.W / CFG.A.w, CFG.H / CFG.A.h) * 0.98;   // the zoom at which the whole map is visible (depends on the window shape)
 const CAM = { x: 0, y: 0, z: 1 };
+// The canvas follows the window shape (height fixed at 540, width from 4:3 to 21:9) so the map fills the whole screen.
+// HUD and menus stay in a centred 960px safe area, so nothing important sits in a far corner of a wide monitor.
+function fitCanvas() {
+  if (typeof window === 'undefined' || !window.innerWidth || !window.innerHeight) return;
+  const w = Math.round(CFG.H * clamp(window.innerWidth / window.innerHeight, 4 / 3, 21 / 9));
+  if (w === CFG.W) return;
+  CFG.W = w; cv.width = w; VIEW.w = w;
+  ZMIN = Math.min(w / A.w, CFG.H / A.h) * 0.98;
+  vigCv = null;                                // the vignette is cached per width
+}
 function mouseWorld() {
   mouse.wx = CAM.x + (mouse.x - (VIEW.x + VIEW.w / 2)) / CAM.z;
   mouse.wy = CAM.y + (mouse.y - (VIEW.y + VIEW.h / 2)) / CAM.z;
 }
 function updCamera(rdt) {
   const dx = Math.abs(P.x - B.x), dy = Math.abs(P.y - B.y), d = Math.hypot(dx, dy);
-  const byDist = 1 - (1 - ZMIN) * clamp((d - 300) / 450, 0, 1);                                   // 1:1 within 300px, whole map beyond 750px
+  const byDist = 1 - (1 - ZMIN) * clamp((d - 350) / 550, 0, 1);                                   // 1:1 within 350px, whole map beyond 900px
   const fit = Math.min(VIEW.w / 2 / (dx / 2 + 140), VIEW.h / 2 / (dy / 2 + 120));                 // never let hero or boss leave the frame
   const tz = clamp(Math.min(byDist, fit), ZMIN, 1);
   CAM.z += (tz - CAM.z) * (1 - Math.exp(-rdt * 3.5));

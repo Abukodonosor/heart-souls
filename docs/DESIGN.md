@@ -28,10 +28,13 @@ each boss holds a fragment of it.
 - `core.js` state, input, player, boss scheduler, hazards - `ui.js` menus - `render.js` drawing - `bosses.js` boss scripts (generators: `yield n` waits n seconds) - `main.js` loop
 - `tools/` dev server + editor save endpoint, benchmark, sprite tooling - `tests/` headless smoke + sprite tests (`npm test`)
 
-## Camera
-World 1140 x 688, view window 760 x 430. Zoom = 1 (exact, so pixel art stays crisp) within 300px of the boss, easing to ZMIN = 0.625 (whole map) at 750px.
-Two guards: fit (hero and boss never leave the frame) and clamp (never show past the map edge). Pixel art is smoothed only while zoom < 1.
-Tests (`tests/smoke.js`): 1:1 when close, whole map when far, 300 random positions all in frame, zoom range, edge clamp, mouse -> world conversion.
+## Camera and screen
+World 1440 x 860 (15 x 10 tiles of 96 x 86). The canvas is 540 high and as wide as the window allows (4:3 .. 21:9), the camera view is the whole canvas,
+HUD / banners / menus are drawn in a centred 960px safe area with soft dark bands under the HUD text. Zoom = 1 (exact, so pixel art stays crisp) within 350px
+of the boss, easing to ZMIN (whole map, depends on the window shape) at 900px. Two guards: fit (hero and boss never leave the frame) and clamp (never show past
+the map edge). Pixel art is smoothed only while zoom < 1. Balance note: the world is much bigger than the original 760 x 430 arena, so patterns that scale with area
+(DARK RAIN) were increased; re-tune difficulty after real playtests.
+Tests (`tests/smoke.js`): 1:1 when close, whole map when far, random positions all in frame (16:9 and wide), zoom range, edge clamp, mouse -> world, canvas follows window shape.
 
 ## Hero art pipeline
 The drawing (`hero.png`, 48x87 art pixels on a 12px grid) is the single source of truth. Frames are built by moving the figure as one rigid block, the hand block (arm swing) and stretching the cloak tails from the inside - never by shearing rows or redrawing -
