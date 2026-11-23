@@ -1,0 +1,15 @@
+# Only what the game needs at runtime goes into the image (arena.html, engine/, hero.png, assets/, tools/server.py).
+.git
+.gitignore
+archive
+tests
+docs
+tools/*
+!tools/server.py
+editor.html
+node_modules
+*.md
+package.json
+Makefile
+Containerfile
+.containerignore

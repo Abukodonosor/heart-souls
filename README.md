@@ -8,6 +8,14 @@ Design and roadmap: [docs/DESIGN.md](docs/DESIGN.md) - performance notes: [docs/
     /arena.html   the game
     /editor.html  pixel + animation editor (Save writes assets/darkheart.json)
 
+## Deploy (Podman)
+    make deploy               # runs the tests, builds the image, (re)starts the container -> http://127.0.0.1:8080/arena.html
+    make build | run | stop | logs | status | clean      (make help)
+    PORT=9000 make deploy     # another host port
+The image (`Containerfile`, based on python:alpine, no dependencies) contains only the game (`arena.html`, `engine/`, `hero.png`, `assets/`, `tools/server.py`);
+it runs as a non-root user, read-only, all capabilities dropped. `ENABLE_SAVE=0` in the container: the editor is not shipped and `POST /save` answers 403.
+No TLS: put it behind a reverse proxy for public use. Use `127.0.0.1`, not `localhost` (rootless Podman forwards IPv4 only; `::1` resets the connection).
+
 ## Test
     npm test                  # smoke.js: every boss, combat and save flows; sprites.js: the hero art pipeline
 Both run headless in a terminal, no dependencies (Node >= 18).
