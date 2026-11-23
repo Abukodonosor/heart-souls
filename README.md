@@ -10,7 +10,8 @@ Design and roadmap: [docs/DESIGN.md](docs/DESIGN.md) - performance notes: [docs/
 
 ## Deploy (Podman)
     make deploy               # runs the tests, builds the image, (re)starts the container -> http://127.0.0.1:6464/arena.html
-    make build | run | stop | logs | status | clean      (make help)
+    make build | run | info | stop | logs | status | clean      (make help)
+    make info                 # where it is deployed: container, host, local URL and the server's LAN / Tailscale addresses (also printed after every deploy)
     PORT=9000 make deploy     # another host port
 The image (`Containerfile`, based on python:alpine, no dependencies) contains only the game (`arena.html`, `engine/`, `hero.png`, `assets/`, `tools/server.py`);
 it runs as a non-root user, read-only, all capabilities dropped. `ENABLE_SAVE=0` in the container: the editor is not shipped and `POST /save` answers 403.

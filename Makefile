@@ -5,7 +5,7 @@ PORT   ?= 6464
 PODMAN ?= podman
 
 .DEFAULT_GOAL := help
-.PHONY: help test build run deploy stop logs status clean
+.PHONY: help test build run deploy info stop logs status clean
 
 help:  ## show this help
 	@grep -E '^[a-z]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | sort
@@ -24,9 +24,17 @@ run:  ## (re)start the container from the current image (no tests, no build)
 	--health-cmd "wget -q -O /dev/null http://127.0.0.1:8000/arena.html" --health-interval 30s \
 	$(IMAGE)
 	@for i in 1 2 3 4 5 6 7 8 9 10; do curl -fs -o /dev/null http://127.0.0.1:$(PORT)/arena.html && break || sleep 1; done; \
-	curl -fsS -o /dev/null http://127.0.0.1:$(PORT)/arena.html && echo "deployed: http://127.0.0.1:$(PORT)/arena.html" || { echo "deploy FAILED: not answering on port $(PORT)"; $(PODMAN) logs $(NAME); exit 1; }
+	curl -fsS -o /dev/null http://127.0.0.1:$(PORT)/arena.html && $(MAKE) --no-print-directory info || { echo "deploy FAILED: not answering on port $(PORT)"; $(PODMAN) logs $(NAME); exit 1; }
 
 deploy: test build run  ## test, build the image and (re)start the container
+
+info:  ## show where the game is deployed (container, host, URLs, server IPs)
+	@echo "deployed:"
+	@echo "  container : $(NAME)  ($(IMAGE))  $$($(PODMAN) ps --filter name=^$(NAME)$$ --format '{{.Status}}')"
+	@echo "  host      : $$(hostname)"
+	@echo "  local     : http://127.0.0.1:$(PORT)/arena.html"
+	@ip -4 -o addr show scope global 2>/dev/null | awk '$$2 !~ /^(podman|docker|veth|br-|cni|virbr|lo)/ { split($$4, a, "/"); printf "  network   : http://%s:$(PORT)/arena.html  (%s)\n", a[1], $$2 }'
+	@echo "  (public IP is not looked up; use the network address inside your LAN, or put a reverse proxy in front)"
 
 stop:  ## stop and remove the container
 	-$(PODMAN) rm -f $(NAME)
