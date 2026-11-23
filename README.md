@@ -11,8 +11,9 @@ Design and roadmap: [docs/DESIGN.md](docs/DESIGN.md) - performance notes: [docs/
 ## Deploy (Podman)
     make deploy               # runs the tests, builds the image, (re)starts the container -> http://127.0.0.1:6464/arena.html
     make build | run | info | stop | logs | status | clean      (make help)
-    make info                 # where it is deployed: container, host, local URL and the server's LAN / Tailscale addresses (also printed after every deploy)
-    PORT=9000 make deploy     # another host port
+    make info                 # where it is deployed: server IP (the address this machine uses on the network), port, game URL, other addresses (also printed after every deploy)
+    PORT=9000 make deploy     # another port (the same port is used outside and inside the container)
+    HOST_ADDR=127.0.0.1 make deploy   # listen on this machine only (default 0.0.0.0 = reachable on the network)
 The image (`Containerfile`, based on python:alpine, no dependencies) contains only the game (`arena.html`, `engine/`, `hero.png`, `assets/`, `tools/server.py`);
 it runs as a non-root user, read-only, all capabilities dropped. `ENABLE_SAVE=0` in the container: the editor is not shipped and `POST /save` answers 403.
 No TLS: put it behind a reverse proxy for public use. Use `127.0.0.1`, not `localhost` (rootless Podman forwards IPv4 only; `::1` resets the connection).
