@@ -28,6 +28,11 @@ each boss holds a fragment of it.
 - `core.js` state, input, player, boss scheduler, hazards - `ui.js` menus - `render.js` drawing - `bosses.js` boss scripts (generators: `yield n` waits n seconds) - `main.js` loop
 - `tools/` dev server + editor save endpoint, benchmark, sprite tooling - `tests/` headless smoke + sprite tests (`npm test`)
 
+## Camera
+World 1140 x 688, view window 760 x 430. Zoom = 1 (exact, so pixel art stays crisp) within 300px of the boss, easing to ZMIN = 0.625 (whole map) at 750px.
+Two guards: fit (hero and boss never leave the frame) and clamp (never show past the map edge). Pixel art is smoothed only while zoom < 1.
+Tests (`tests/smoke.js`): 1:1 when close, whole map when far, 300 random positions all in frame, zoom range, edge clamp, mouse -> world conversion.
+
 ## Hero art pipeline
 The drawing (`hero.png`, 48x87 art pixels on a 12px grid) is the single source of truth. Frames are built by moving the figure as one rigid block, the hand block (arm swing) and stretching the cloak tails from the inside - never by shearing rows or redrawing -
 so the character always looks exactly like the original (rules and defect limits: README, `tests/sprites.js`). The Abyssal Blade is the only drawn addition.

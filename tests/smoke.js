@@ -19,6 +19,7 @@ for (const f of ['util', 'spritegen', 'sprite', 'save', 'audio', 'fx', 'core', '
 const test = `
 (function () {
   let failed = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) failed++; };
+  const aimAt = (x, y) => { mouse.x = VIEW.x + VIEW.w / 2 + (x - CAM.x) * CAM.z; mouse.y = VIEW.y + VIEW.h / 2 + (y - CAM.y) * CAM.z; };   // aim at a WORLD point through the camera
   DH.ready = true; DH.portrait = { width: 40, height: 72 }; DH.frames = [{ width: 48, height: 76 }];
   for (const mode of ['abyss', 'souls']) {
     SAVE.d.mode = mode;
@@ -28,7 +29,7 @@ const test = `
       for (let f = 0; f < 60 * 90; f++) {
         const s = f / 60;
         keys.KeyD = Math.sin(s * 0.7) > 0; keys.KeyA = !keys.KeyD; keys.KeyW = Math.sin(s * 0.5) > 0.3; keys.KeyS = !keys.KeyW;
-        mouse.x = B.x; mouse.y = B.y; if (f % 50 === 0) just.Space = 1; if (f % 7 === 0) mouse.l = 1; else mouse.l = 0;
+        aimAt(B.x, B.y); if (f % 50 === 0) just.Space = 1; if (f % 7 === 0) mouse.l = 1; else mouse.l = 0;
         if (B.weak.open && f % 20 === 0) { B.hp -= 0; }
         update(1 / 60);
         if (f % 30 === 0) draw();
@@ -55,6 +56,24 @@ const test = `
   P.drink = 0; just.KeyF = 1; update(1 / 60); for (let f = 0; f < 80; f++) update(1 / 60); ok(P.hp === 5 && P.flasks === 2, 'souls: flask heals');
   // dash i-frames
   begin(0); state = 'play'; P.inv = 0; P.dash = 0.1; hurt(); ok(P.hp === P.maxhp, 'dash is invulnerable');
+  // camera: 1:1 when close, pulls back with distance, always keeps hero and boss in frame, never leaves the map
+  begin(0); state = 'play';
+  const settle = () => { for (let f = 0; f < 400; f++) updCamera(1 / 60); };
+  B.x = 600; B.y = 300; P.x = 650; P.y = 340; settle(); ok(CAM.z === 1, 'camera is exactly 1:1 when the hero is next to the boss');
+  P.x = A.x + 40; P.y = A.y + A.h - 40; B.x = A.x + A.w - 100; B.y = A.y + 100; settle(); ok(Math.abs(CAM.z - ZMIN) < 0.01, 'camera shows the whole map when far apart (zoom ' + CAM.z.toFixed(3) + ')');
+  { let bad = 0, outZoom = 0, offMap = 0;
+    for (let i = 0; i < 300; i++) {
+      P.x = rr(A.x + 10, A.x + A.w - 10); P.y = rr(A.y + 10, A.y + A.h - 10); B.x = rr(A.x + 60, A.x + A.w - 60); B.y = rr(A.y + 60, A.y + A.h - 60); settle();
+      const hw = VIEW.w / 2 / CAM.z, hh = VIEW.h / 2 / CAM.z, inView = o => Math.abs(o.x - CAM.x) <= hw && Math.abs(o.y - CAM.y) <= hh;
+      if (!inView(P) || !inView(B)) bad++;
+      if (CAM.z < ZMIN - 1e-9 || CAM.z > 1 + 1e-9) outZoom++;
+      if (hw * 2 < A.w && (CAM.x - hw < A.x - 1e-6 || CAM.x + hw > A.x + A.w + 1e-6)) offMap++;
+    }
+    ok(bad === 0, 'hero and boss are always inside the view (300 random positions, ' + bad + ' violations)');
+    ok(outZoom === 0, 'zoom stays within [' + ZMIN + ', 1]');
+    ok(offMap === 0, 'the camera never shows past the edge of the map when zoomed in'); }
+  CAM.x = 500; CAM.y = 300; CAM.z = 0.8; mouse.x = VIEW.x + VIEW.w / 2 + 80; mouse.y = VIEW.y + VIEW.h / 2 - 40; mouseWorld();
+  ok(Math.abs(mouse.wx - 600) < 1e-9 && Math.abs(mouse.wy - 250) < 1e-9, 'mouse position converts to world coordinates through the camera (zoom 0.8)');
   // corrupt / hand-edited save data must be sanitised, never trusted
   ok(JSON.stringify(SAVE.clean({ cleared: 'x', mode: 'evil', vol: 9, best: { a: 1, '2': -5, '1': 12.5 }, deaths: { '0': 3 }, totalDeaths: -1 })) === JSON.stringify({ cleared: [], best: { '1': 12.5 }, deaths: { '0': 3 }, mode: 'abyss', vol: 1, totalDeaths: 0 }), 'corrupt save data is sanitised');
   ok(SAVE.clean(null).mode === 'abyss' && SAVE.clean('junk').cleared.length === 0 && SAVE.clean({ cleared: [2, 2, 0, -1, 1.5, 'z'] }).cleared.join() === '0,2', 'save: junk input and duplicate/invalid clears are handled');

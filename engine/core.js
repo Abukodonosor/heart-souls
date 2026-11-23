@@ -3,7 +3,10 @@
 // Drawing lives in render.js, menus in ui.js, boss scripts in bosses.js.
 
 const CFG = {
-  W: 960, H: 540, A: { x: 100, y: 70, w: 760, h: 430 },
+  W: 960, H: 540,
+  A: { x: 0, y: 0, w: 1140, h: 688 },          // the WORLD: 12 x 8 tiles of 95 x 86, 1.5x the old arena
+  VIEW: { x: 100, y: 70, w: 760, h: 430 },     // the window on screen that shows the world through the camera
+
   speed: 215, dash: 640, dashT: 0.17, dashCd: 0.6, burstT: 6,
   stam: { max: 100, regen: 48, delay: 0.55, dash: 28, swing: 14 },
   flask: { heal: 2, time: 0.9 },
@@ -22,8 +25,8 @@ const BOLTS = [
 const BOSS_SCALE = 1.25;                      // bosses are authored at 1x; they are enlarged to stand next to the 87px hero
 const FRAGMENTS = ['LEFT EYE', 'RIGHT EYE', 'VOICE', 'NAME', 'FACE'];
 
-const A = CFG.A, cv = document.getElementById('c'), ctx = cv.getContext('2d');
-const keys = {}, just = {}, mouse = { x: 480, y: 270, l: 0, r: 0, jl: 0, jr: 0 };
+const A = CFG.A, VIEW = CFG.VIEW, cv = document.getElementById('c'), ctx = cv.getContext('2d');
+const keys = {}, just = {}, mouse = { x: 480, y: 270, wx: 480, wy: 270, l: 0, r: 0, jl: 0, jr: 0 };   // wx/wy = mouse in world coordinates
 let state = 'title', prevState = 'title', bi = 0, t = 0, tm = 0, sub = 0;
 const zoneAlive = z => z.t < z.tel + z.act, bulletAlive = b => !b.dead;
 let P = null, B = null, MODE = MODES.abyss, zones = [], bullets = [], clearInfo = null, dodgeCd = 0, boomCd = 0, clangCd = 0;
@@ -78,9 +81,33 @@ function phaseOf() {
   return B.phases === 3 ? (r > 0.66 ? 0 : r > 0.33 ? 1 : 2) : (r > 0.5 ? 0 : 1);
 }
 
+// ---------------------------------------------------------------- camera
+// Close to the boss the view is exactly 1:1 (crisp pixel art). The further apart hero and boss are, the further the camera
+// pulls back, until the whole map is visible (ZMIN). It always keeps both in frame and never shows past the map edge.
+const ZMIN = 0.625;                            // 760/0.625 x 430/0.625 = more than the 1140 x 688 map
+const CAM = { x: 0, y: 0, z: 1 };
+function mouseWorld() {
+  mouse.wx = CAM.x + (mouse.x - (VIEW.x + VIEW.w / 2)) / CAM.z;
+  mouse.wy = CAM.y + (mouse.y - (VIEW.y + VIEW.h / 2)) / CAM.z;
+}
+function updCamera(rdt) {
+  const dx = Math.abs(P.x - B.x), dy = Math.abs(P.y - B.y), d = Math.hypot(dx, dy);
+  const byDist = 1 - (1 - ZMIN) * clamp((d - 300) / 450, 0, 1);                                   // 1:1 within 300px, whole map beyond 750px
+  const fit = Math.min(VIEW.w / 2 / (dx / 2 + 140), VIEW.h / 2 / (dy / 2 + 120));                 // never let hero or boss leave the frame
+  const tz = clamp(Math.min(byDist, fit), ZMIN, 1);
+  CAM.z += (tz - CAM.z) * (1 - Math.exp(-rdt * 3.5));
+  if (Math.abs(CAM.z - 1) < 0.004) CAM.z = 1;                                                    // snap: exactly 1:1 means crisp
+  const hw = VIEW.w / 2 / CAM.z, hh = VIEW.h / 2 / CAM.z;
+  const tx = hw * 2 >= A.w ? A.x + A.w / 2 : clamp((P.x + B.x) / 2, A.x + hw, A.x + A.w - hw);
+  const ty = hh * 2 >= A.h ? A.y + A.h / 2 : clamp((P.y + B.y) / 2, A.y + hh, A.y + A.h - hh);
+  const k = 1 - Math.exp(-rdt * 6);
+  CAM.x += (tx - CAM.x) * k; CAM.y += (ty - CAM.y) * k;
+  mouseWorld();
+}
+
 // ---------------------------------------------------------------- flow
 function newPlayer() {
-  return { x: 480, y: 440, r: 8, hp: MODE.hp, maxhp: MODE.hp, stam: CFG.stam.max, stamWait: 0, vx: 0, vy: 0, dash: 0, dcd: 0, dx: 0, dy: 1,
+  return { x: A.x + A.w / 2, y: A.y + A.h - 80, r: 8, hp: MODE.hp, maxhp: MODE.hp, stam: CFG.stam.max, stamWait: 0, vx: 0, vy: 0, dash: 0, dcd: 0, dx: 0, dy: 1,
     inv: 0, swing: 0, scd: 0, sa: 0, hb: 0, hw: 0, mana: 0, burst: 0, drink: 0, flasks: MODE.flasks, nm: 'idle', ts: 0, aim: 0, boltType: 0,
     bolt: { s: 'held', x: 0, y: 0, vx: 0, vy: 0, life: 0, hit: 0, type: 0 } };
 }
@@ -88,6 +115,7 @@ function begin(i) {
   if (!BOSSES[i]) return;
   bi = i; MODE = MODES[SAVE.d.mode] || MODES.abyss;
   P = newPlayer(); B = BOSSES[i](); B.gen = B.script();
+  CAM.z = ZMIN; CAM.x = A.x + A.w / 2; CAM.y = A.y + A.h / 2; mouseWorld();     // every fight opens on the whole map, then the camera settles in
   zones = []; bullets = []; clearInfo = null; FX.clear();
   buildFloor(B.theme);
   state = 'intro'; sub = 2.6; tm = 0;
@@ -155,7 +183,7 @@ function onPhase() {                         // boss crossed an HP threshold: re
 
 // ---------------------------------------------------------------- player
 function updP(dt) {
-  const aim = Math.atan2(mouse.y - P.y, mouse.x - P.x); P.aim = aim;
+  const aim = Math.atan2(mouse.wy - P.y, mouse.wx - P.x); P.aim = aim;
   let mx = (down('KeyD', 'ArrowRight') ? 1 : 0) - (down('KeyA', 'ArrowLeft') ? 1 : 0);
   let my = (down('KeyS', 'ArrowDown') ? 1 : 0) - (down('KeyW', 'ArrowUp') ? 1 : 0);
   const ml = Math.hypot(mx, my); if (ml) { mx /= ml; my /= ml; }
@@ -310,6 +338,7 @@ function update(rdt) {
   if (FX.hs > 0) { FX.hs -= rdt; dt = rdt * 0.06; }      // hit-stop: near-freeze for a few frames
   dodgeCd -= dt; boomCd -= dt; clangCd -= dt;
   uiUpdate(rdt);
+  if (P && B && state !== 'title' && state !== 'select' && state !== 'paused') updCamera(rdt);
   if (state === 'intro') { sub -= dt; if (sub <= 0) { state = 'play'; AUD.setIntensity(0.35); } }
   else if (state === 'play') play(dt);
   else if (state === 'dead') {            // let the killing hazard finish and fade instead of freezing on screen

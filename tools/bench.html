@@ -19,7 +19,7 @@ const files = ['util', 'spritegen', 'sprite', 'save', 'audio', 'fx', 'core', 'ui
     (function frame(now) {
       if (last) dts.push(now - last); last = now;
       const s = f / 60; keys.KeyD = Math.sin(s * 0.7) > 0; keys.KeyA = !keys.KeyD; keys.KeyW = Math.sin(s * 0.5) > 0.3; keys.KeyS = !keys.KeyW;
-      mouse.x = B.x; mouse.y = B.y; mouse.l = f % 7 === 0 ? 1 : 0;
+      mouse.x = VIEW.x + VIEW.w / 2 + (B.x - CAM.x) * CAM.z; mouse.y = VIEW.y + VIEW.h / 2 + (B.y - CAM.y) * CAM.z; mouse.l = f % 7 === 0 ? 1 : 0;
       const a = performance.now(); update(1 / 60); draw(); work.push(performance.now() - a); mb = Math.max(mb, bullets.length);
       for (const k in just) delete just[k];
       if (++f < 480 && state === 'play') requestAnimationFrame(frame); else { keys.KeyA = keys.KeyD = keys.KeyW = keys.KeyS = 0; res({ name: B.name, dts: dts.slice(30), work: work.slice(30), mb }); }

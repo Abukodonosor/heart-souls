@@ -18,6 +18,7 @@ const BOSS_INFO = [
   { name: 'THE HOLLOW KING', epithet: 'Wears the crown of an empty head' },
 ];
 const cx = A.x + A.w / 2, cy = A.y + A.h / 2;
+const CELL = { w: 95, h: 86 }, COLS = Math.round(A.w / CELL.w), ROWS = Math.round(A.h / CELL.h);   // the floor tile grid (12 x 8) that grid attacks follow
 const ex = T => T * (0.6 + 0.4 * (B ? B.k : 1));           // exposure windows shrink in later phases
 const randIn = (m = 40) => [rr(A.x + m, A.x + A.w - m), rr(A.y + m, A.y + A.h - m)];
 
@@ -69,7 +70,7 @@ function drawMirror(g, k) {
   const im = mirrorSprite(); g.save();
   g.strokeStyle = k ? '#fff' : 'rgba(220,235,255,.35)'; g.lineWidth = 2; g.beginPath(); g.arc(0, 0, B.r, 0, TAU); g.stroke();
   if (im) {
-    g.imageSmoothingEnabled = false; if (Math.cos(B.face) > 0) g.scale(-1, 1);
+    g.imageSmoothingEnabled = CAM.z < 1; if (Math.cos(B.face) > 0) g.scale(-1, 1);
     const n = 9, top = -Math.round(im.height * 0.55);                  // 1:1 scale, whole-pixel slices: a fractional scale would tear the sprite
     for (let i = 0; i < n; i++) {                                      // glitchy horizontal slices
       const y0 = Math.floor(i * im.height / n), y1 = Math.floor((i + 1) * im.height / n), off = Math.round(Math.sin(t * 9 + i * 1.7) * (B.stun ? 0.5 : 2.2));
@@ -144,9 +145,9 @@ const BOSSES = [
           const a = aimP(B.x, B.y), n = 7 + B.phase * 4; for (let i = 0; i < n; i++) bl(B.x, B.y, a + (i - (n - 1) / 2) * 0.2, 260); yield 0.5; }
         { const T = 1.2 * B.k, par = (Math.random() * 2) | 0;                          // SHATTER: stand in the safe stripes
           const horiz = B.phase > 0 && Math.random() < 0.5;
-          for (let i = 0; i < (horiz ? 5 : 8); i++) if ((i + par) % 2) { if (horiz) zx(A.x, A.y + i * 86, A.w, 86, T); else zx(A.x + i * 95, A.y, 95, A.h, T); }
+          for (let i = 0; i < (horiz ? ROWS : COLS); i++) if ((i + par) % 2) { if (horiz) zx(A.x, A.y + i * CELL.h, A.w, CELL.h, T); else zx(A.x + i * CELL.w, A.y, CELL.w, A.h, T); }
           yield* cast('SHATTER', T); yield 0.1;
-          for (let i = 0; i < (horiz ? 5 : 8); i++) if (!((i + par) % 2)) { if (horiz) zx(A.x, A.y + i * 86, A.w, 86, T * 0.85); else zx(A.x + i * 95, A.y, 95, A.h, T * 0.85); }
+          for (let i = 0; i < (horiz ? ROWS : COLS); i++) if (!((i + par) % 2)) { if (horiz) zx(A.x, A.y + i * CELL.h, A.w, CELL.h, T * 0.85); else zx(A.x + i * CELL.w, A.y, CELL.w, A.h, T * 0.85); }
           yield* cast('SHATTER', T * 0.85); }
         yield* expose(ex(2.3));
         yield* goto(rr(A.x + 120, A.x + A.w - 120), rr(A.y + 80, A.y + 200), 260);
@@ -158,7 +159,7 @@ const BOSSES = [
     while (true) {
       { const par = (Math.random() * 2) | 0, swaps = 1 + B.phase;                    // COURT: checkerboard that flips
         for (let s = 0; s < swaps + 1; s++) { const T = (s ? 0.95 : 1.3) * B.k;
-          for (let r = 0; r < 5; r++) for (let c = 0; c < 8; c++) if ((r + c + par + s) % 2) zx(A.x + c * 95, A.y + r * 86, 95, 86, T);
+          for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if ((r + c + par + s) % 2) zx(A.x + c * CELL.w, A.y + r * CELL.h, CELL.w, CELL.h, T);
           yield* cast('COURT', T); } }
       { const T = 1.1 * B.k, b0 = rr(0, PI);
         for (let i = 0; i < 8; i++) zb(B.x, B.y, b0 + i * PI / 4, 34, T); yield* cast('CROWN', T);

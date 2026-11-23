@@ -16,6 +16,11 @@ Both run headless in a terminal, no dependencies (Node >= 18).
 WASD move - Space/Shift dash (i-frames) - LMB/J Abyssal Blade - RMB/K throw / recall the bolt
 Tab or 1-4 switch bolt - Q burst - F flask (souls mode) - Esc pause - M mute
 
+## Map and camera
+The map is 1140 x 688 (12 x 8 floor tiles). The camera is exactly 1:1 (crisp pixel art) while you are near the boss and pulls back smoothly as you move away,
+until the whole map is visible; it always keeps both hero and boss in frame and never shows past the map edge. Every fight opens on the whole map.
+Aim and the mouse work in world coordinates, so they stay correct at any zoom. Constants: `ZMIN`, `CFG.A` (world), `CFG.VIEW` (screen window) in `engine/core.js`.
+
 ## The hero art (important)
 `hero.png` is the source of truth: a clean 100x100 pixel grid, each art pixel = 12x12 image pixels; the character is 48x87 art pixels, 13 colours.
 All animation is built *from that drawing* (`engine/spritegen.js`), so idle frame 0 is pixel-identical to the PNG. Only the Abyssal Blade is new, drawn in the

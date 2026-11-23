@@ -132,7 +132,7 @@ function drawPlayer() {
   if (P.inv > 0 && state === 'play' && Math.floor(t * 20) % 2) al *= 0.35;                     // post-hit blink
   // Pixel art is only drawn at an exact 1:1 scale on whole pixels: any other scale drops or doubles rows (that tears the outline).
   const el = t - P.ts;
-  ctx.save(); ctx.globalAlpha = al; ctx.translate(Math.round(P.x), Math.round(P.y + 10)); ctx.imageSmoothingEnabled = false;
+  ctx.save(); ctx.globalAlpha = al; ctx.translate(Math.round(P.x), Math.round(P.y + 10)); ctx.imageSmoothingEnabled = CAM.z < 1;   // smooth only while the camera is pulled back (a fractional scale of crisp art would tear it)
   if (P.burst > 0) { ctx.shadowColor = '#6af'; ctx.shadowBlur = 20; } else if (P.drink > 0) { ctx.shadowColor = '#f93'; ctx.shadowBlur = 18; }
   if (nm === 'death' && el > 0.25) ctx.rotate((P.faceR ? -1 : 1) * PI / 2);           // after the slump he falls backwards: an exact quarter turn stays pixel-perfect
   ctx.drawImage(im, -im.width / 2, -SPR.FEET);
@@ -237,15 +237,15 @@ function drawMenu(items, x, y, gap, left = false) {      // left: table-style ro
   if (cur && cur.sub) text(cur.sub(), x, y + items.length * gap + 8, 13, '#c6f', 'center', false);
 }
 function floorBackdrop() {
-  ctx.drawImage(floorCv, A.x, A.y);
-  ctx.strokeStyle = '#7a2a9a'; ctx.lineWidth = 3; ctx.strokeRect(A.x, A.y, A.w, A.h);
+  ctx.drawImage(floorCv, VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+  ctx.strokeStyle = '#7a2a9a'; ctx.lineWidth = 3; ctx.strokeRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
   for (const p of FX.parts) { ctx.fillStyle = p.c; ctx.globalAlpha = clamp(p.l / p.m, 0, 1); ctx.fillRect(p.x - 1, p.y - 1, 2, 2); } ctx.globalAlpha = 1;
 }
 function drawTitle() {
   ctx.fillStyle = '#050308'; ctx.fillRect(0, 0, CFG.W, CFG.H);
   floorBackdrop();
-  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(A.x, A.y, A.w, A.h);
-  if (Math.random() < 0.3) FX.parts.push({ x: rr(A.x, A.x + A.w), y: A.y + A.h, vx: rr(-6, 6), vy: -rr(20, 60), l: 5, m: 5, size: 2, c: '#a0f', drag: 0 });
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
+  if (Math.random() < 0.3) FX.parts.push({ x: rr(VIEW.x, VIEW.x + VIEW.w), y: VIEW.y + VIEW.h, vx: rr(-6, 6), vy: -rr(20, 60), l: 5, m: 5, size: 2, c: '#a0f', drag: 0 });
   if (DH.ready && DH.portrait) {                               // the hero, large, breathing
     const im = DH.portrait, S = 3, bob = Math.sin(t * 2) * 3;
     ctx.save(); ctx.imageSmoothingEnabled = false; ctx.shadowColor = '#a0f'; ctx.shadowBlur = 24;
@@ -261,7 +261,7 @@ function drawTitle() {
 }
 function drawSelect() {
   ctx.fillStyle = '#050308'; ctx.fillRect(0, 0, CFG.W, CFG.H); floorBackdrop();
-  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(A.x, A.y, A.w, A.h);
+  ctx.fillStyle = 'rgba(0,0,0,.6)'; ctx.fillRect(VIEW.x, VIEW.y, VIEW.w, VIEW.h);
   text('BOSS SELECT', 480, 130, 30, '#fff');
   drawMenu(menuItems(), 290, 200, 40, true);
   faceIcon(CFG.W - 120, 90, 60, 72, SAVE.isCleared.bind(SAVE));
@@ -283,8 +283,12 @@ function overlayPause() {
 function drawWorld() {
   ctx.save();
   if (FX.sk > 0) ctx.translate(rr(-1, 1) * FX.sk, rr(-1, 1) * FX.sk);
+  ctx.beginPath(); ctx.rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h); ctx.clip();                      // the camera window
+  ctx.translate(VIEW.x + VIEW.w / 2, VIEW.y + VIEW.h / 2); ctx.scale(CAM.z, CAM.z);
+  const crisp = CAM.z === 1;                                                                  // exactly 1:1 -> whole-pixel camera, crisp art
+  ctx.translate(-(crisp ? Math.round(CAM.x) : CAM.x), -(crisp ? Math.round(CAM.y) : CAM.y));
   ctx.drawImage(floorCv, A.x, A.y);
-  ctx.save(); ctx.shadowColor = B.theme.glow; ctx.shadowBlur = 14; ctx.strokeStyle = B.theme.accent; ctx.lineWidth = 3; ctx.strokeRect(A.x, A.y, A.w, A.h); ctx.restore();
+  ctx.save(); ctx.shadowColor = B.theme.glow; ctx.shadowBlur = 14; ctx.strokeStyle = B.theme.accent; ctx.lineWidth = 3 / CAM.z; ctx.strokeRect(A.x, A.y, A.w, A.h); ctx.restore();
   ctx.save(); ctx.beginPath(); ctx.rect(A.x, A.y, A.w, A.h); ctx.clip();
   for (const z of zones) drawZone(z);
   if (!(state === 'clear' && sub < 2.6)) drawBoss();
