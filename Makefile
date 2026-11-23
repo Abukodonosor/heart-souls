@@ -1,7 +1,7 @@
 # Darkheart - common tasks. `make help` lists them.
 NAME   ?= darkheart
 IMAGE  ?= localhost/darkheart:latest
-PORT   ?= 8080
+PORT   ?= 6464
 PODMAN ?= podman
 
 .DEFAULT_GOAL := help

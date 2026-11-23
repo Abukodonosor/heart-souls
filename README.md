@@ -9,7 +9,7 @@ Design and roadmap: [docs/DESIGN.md](docs/DESIGN.md) - performance notes: [docs/
     /editor.html  pixel + animation editor (Save writes assets/darkheart.json)
 
 ## Deploy (Podman)
-    make deploy               # runs the tests, builds the image, (re)starts the container -> http://127.0.0.1:8080/arena.html
+    make deploy               # runs the tests, builds the image, (re)starts the container -> http://127.0.0.1:6464/arena.html
     make build | run | stop | logs | status | clean      (make help)
     PORT=9000 make deploy     # another host port
 The image (`Containerfile`, based on python:alpine, no dependencies) contains only the game (`arena.html`, `engine/`, `hero.png`, `assets/`, `tools/server.py`);
